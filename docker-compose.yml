@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: alimurtado_web
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      - CI_ENV=production
+      - DB_HOST=db
+      - DB_USER=${DB_USER:-alimurtado}
+      - DB_PASS=${DB_PASS:-password}
+      - DB_NAME=${DB_NAME:-default}
+    depends_on:
+      - db
+    volumes:
+      - .:/var/www/html
+
+  db:
+    image: mariadb:10.6
+    container_name: alimurtado_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-default}
+      MYSQL_USER: ${DB_USER:-alimurtado}
+      MYSQL_PASSWORD: ${DB_PASS:-password}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./Database.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  db_data:
