@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Sitemap:https://alimurtado.com/sitemap.xml
+Sitemap:https://alimurtado.com/sitemap.xml

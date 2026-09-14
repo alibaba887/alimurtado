@@ -20,3 +20,7 @@ thumbs.db
 composer.lock
 vendor/
 node_modules/
+*.sql
+*.zip
+*.bak
+*.log

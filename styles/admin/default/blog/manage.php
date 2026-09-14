@@ -39,12 +39,12 @@
                     <p>
                         <label class="radio-inline">
                             <input type="radio" value="1" name="display"
-                                   <?php if (set_value('display', $item->display) == '1'): ?>checked="checked"<?php endif; ?>>
+                                   <?php if (set_value('display', (isset($item->display) && $item->display !== '' ? $item->display : '1')) != '0'): ?>checked="checked"<?php endif; ?>>
                                    <?php echo lang('global_yes') ?>
                         </label>
                         <label class="radio-inline">
                             <input type="radio" value="0" name="display"
-                                   <?php if (set_value('display', $item->display) == '0'): ?>checked="checked"<?php endif; ?>>  
+                                   <?php if (set_value('display', (isset($item->display) && $item->display !== '' ? $item->display : '1')) == '0'): ?>checked="checked"<?php endif; ?>>  
                                    <?php echo lang('global_no') ?>
                         </label>
                     </p>

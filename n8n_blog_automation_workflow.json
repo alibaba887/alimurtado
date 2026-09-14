@@ -1,0 +1,177 @@
+{
+  "name": "Auto Blog Publisher - Gemini Proxy Alimurtado.com",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-node",
+      "name": "Manual Trigger (Klik Test)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtHour": 9,
+              "triggerAtDay": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-node",
+      "name": "Jadwal Mingguan (Senin 09:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 480]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "niche",
+              "value": "Digital Advertising, Meta Ads, TikTok Ads, AI in Advertising, Scale Up Bisnis"
+            },
+            {
+              "name": "target_audience",
+              "value": "Business Owners, Advertisers, Marketers di Indonesia"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "topic-config-node",
+      "name": "Konfigurasi Niche & Topik",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [420, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://139.99.149.119:56675/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer sk-gemini-proxy-alibaba-887"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gemini-flash\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Tolong buatkan 1 artikel blog yang mendalam, profesional, dan sangat praktis untuk website personal branding milik Moh. Ali Murtado (seorang pakar Digital Advertiser).\\n\\nNiche: {{ $json.niche }}\\nTarget Audiens: {{ $json.target_audience }}\\n\\nPILIH SALAH SATU kategori yang paling relevan dari daftar ID ini:\\n- 4: Instagram Ads\\n- 5: Facebook Ads\\n- 7: Tiktok Ads\\n- 8: Meta Ads\\n- 10: Google Ads\\n- 11: Analytics & Performance Tracking\\n- 12: Case Study & Success Story\\n- 13: A/B Testing & Experimentation\\n- 14: Funnel & Customer Journey\\n- 15: Creative & Copywriting for Ads\\n- 16: Budgeting & Scaling Ads\\n- 17: Industry Trends & Algorithm Updates\\n- 18: Retargeting & Audience Segmentation\\n- 19: Automation & AI in Advertising\\n\\nOUTPUT WAJIB DALAM FORMAT JSON MURNI (tanpa markdown backtick ```json) dengan struktur persis seperti ini:\\n{\\n  \\\"title\\\": \\\"Judul artikel yang menarik dan SEO friendly (max 80 karakter)\\\",\\n  \\\"category_id\\\": 19,\\n  \\\"short_description\\\": \\\"Ringkasan artikel dalam 1-2 kalimat (max 150 karakter)\\\",\\n  \\\"meta_description\\\": \\\"Deskripsi SEO untuk pencarian Google (140-160 karakter)\\\",\\n  \\\"meta_keywords\\\": \\\"5-8 kata kunci relevan dipisahkan koma\\\",\\n  \\\"content\\\": \\\"Konten lengkap dalam format HTML (gunakan <h2>, <h3>, <p>, <ul>, <li>, <strong>). Buat artikel panjang minimal 600 kata yang berbobot dan diakhiri dengan call to action santai untuk konsultasi/diskusi dengan Mas Ali.\\\"\\n}\"\n    }\n  ],\n  \"stream\": false\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [640, 380],
+      "id": "e2e5cd1b-1d8f-49c1-b1b8-67f2f4ecc61e",
+      "name": "Gemini Proxy (HTTP Request)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nlet rawContent = '';\n\nif (response.choices && response.choices[0] && response.choices[0].message) {\n  rawContent = response.choices[0].message.content;\n} else {\n  rawContent = JSON.stringify(response);\n}\n\nlet data = {};\ntry {\n  const cleanJson = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();\n  data = JSON.parse(cleanJson);\n} catch (e) {\n  data = {\n    title: 'Strategi Optimasi Digital Advertising Berkelanjutan',\n    content: '<p>' + rawContent + '</p>',\n    category_id: 19,\n    short_description: 'Panduan lengkap seputar strategi periklanan digital terkini.',\n    meta_description: 'Pelajari teknik terbaru dalam optimasi iklan online untuk bisnis Anda.',\n    meta_keywords: 'digital advertising, meta ads, scale up'\n  };\n}\n\n// Cover image otomatis beresolusi tinggi\nconst coverImageUrl = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&h=630&q=80';\n\nreturn {\n  title: data.title || 'Strategi Optimasi Iklan Digital',\n  content: data.content || '<p>Konten artikel...</p>',\n  short_description: data.short_description || '',\n  meta_description: data.meta_description || '',\n  meta_keywords: data.meta_keywords || 'digital advertising, ads, marketing',\n  category_id: data.category_id || 19,\n  image_url: coverImageUrl,\n  author: 'Moh. Ali Murtado',\n  display: '1'\n};"
+      },
+      "id": "format-payload-node",
+      "name": "Format Payload & Cover Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://alimurtado.com/api/blog/publish",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "sk_alimurtado_b7f94d82a1e8c9502b4e723910c5df6a"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": {{ JSON.stringify($json.title) }},\n  \"content\": {{ JSON.stringify($json.content) }},\n  \"short_description\": {{ JSON.stringify($json.short_description) }},\n  \"meta_description\": {{ JSON.stringify($json.meta_description) }},\n  \"meta_keywords\": {{ JSON.stringify($json.meta_keywords) }},\n  \"category_id\": {{ $json.category_id }},\n  \"image_url\": {{ JSON.stringify($json.image_url) }},\n  \"author\": \"Moh. Ali Murtado\",\n  \"display\": \"1\"\n}",
+        "options": {}
+      },
+      "id": "publish-api-node",
+      "name": "Publish ke alimurtado.com (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [1080, 380]
+    }
+  ],
+  "connections": {
+    "Manual Trigger (Klik Test)": {
+      "main": [
+        [
+          {
+            "node": "Konfigurasi Niche & Topik",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jadwal Mingguan (Senin 09:00)": {
+      "main": [
+        [
+          {
+            "node": "Konfigurasi Niche & Topik",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Konfigurasi Niche & Topik": {
+      "main": [
+        [
+          {
+            "node": "Gemini Proxy (HTTP Request)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Proxy (HTTP Request)": {
+      "main": [
+        [
+          {
+            "node": "Format Payload & Cover Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Payload & Cover Image": {
+      "main": [
+        [
+          {
+            "node": "Publish ke alimurtado.com (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

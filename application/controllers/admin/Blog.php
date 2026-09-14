@@ -34,6 +34,20 @@ class Blog extends CIF_Controller {
         $this->{$this->model}->limit = config('pagination_limit');
         $this->db->order_by('blog_id', 'DESC');
         $data['items'] = $this->{$this->model}->get();
+        $data['categories'] = $this->db->order_by('blog_category_id', 'ASC')->get('blog_categories')->result();
+
+        // Auto-Publish Queue & Cron Data
+        $data['queue_count'] = $this->db->where('nama_file IS NULL', null, false)->where('terpublish', 0)->count_all_results('konten_publish');
+
+        $cron_setting = $this->db->where('key', 'ai_blog_cron_status')->get('settings')->row();
+        $data['cron_status'] = $cron_setting ? $cron_setting->value : '0';
+
+        $last_run = $this->db->where('key', 'ai_blog_last_run')->get('settings')->row();
+        $data['cron_last_run'] = $last_run ? $last_run->value : '-';
+
+        $last_title = $this->db->where('key', 'ai_blog_last_title')->get('settings')->row();
+        $data['cron_last_title'] = $last_title ? $last_title->value : '-';
+
         $this->load->view($this->module . '/index', $data);
     }
 
@@ -47,13 +61,14 @@ class Blog extends CIF_Controller {
                 show_404();
         } else {
             $data['item'] = new Std();
+            $data['item']->display = '1';
             $this->{$this->model}->datetime = date('Y-m-d H:i:s');
         }
         $this->load->library("form_validation");
         $this->form_validation->set_rules('blog_category_id', 'lang:global_category', 'trim|required');
         $this->form_validation->set_rules('title', 'lang:global_title', 'trim|required');
         $this->form_validation->set_rules('description', 'lang:global_description', 'trim|required');
-        $this->form_validation->set_rules('short_description', 'lang:global_short_description', 'trim|required|max_length[100]');
+        $this->form_validation->set_rules('short_description', 'lang:global_short_description', 'trim|required|max_length[255]');
         $this->form_validation->set_rules("image", 'lang:global_featured_image', "trim|callback_file[$id]");
         $this->form_validation->set_rules('meta_keywords', 'lang:global_tags', 'trim|required');
         $this->form_validation->set_rules('meta_description', 'lang:settings_meta_description', 'trim|required');
@@ -101,5 +116,230 @@ class Blog extends CIF_Controller {
         return true;
     }
 
+    public function generate_ai() {
+        $this->permission();
+        $this->layout = 'none';
 
+        $custom_topic = trim($this->input->post('topic'));
+        $target_category_id = (int)$this->input->post('category_id');
+        $display = '1';
+
+        // 1. Ambil artikel acuan (post #538) untuk gaya penulisan & format
+        $sample_format_guide = "Gaya penulisan harus mengikuti gaya artikel acuan (post #538) milik Moh. Ali Murtado:\n";
+        $sample_format_guide .= "- Judul menarik, spesifik, dan SEO-friendly.\n";
+        $sample_format_guide .= "- Intro pembuka yang menyoroti dilema/masalah nyata pengiklan.\n";
+        $sample_format_guide .= "- Sub-heading (h2 dan h3) yang mendalam dan mudah dipahami.\n";
+        $sample_format_guide .= "- WAJIB menyertakan minimal 1 TABEL PERBANDINGAN (format HTML <table><tr><th>...</th></tr><tr><td>...</td></tr></table>).\n";
+        $sample_format_guide .= "- Menggunakan poin-poin terstruktur (<ol>, <ul>, <li>).\n";
+        $sample_format_guide .= "- Menggunakan terminologi praktis (ROAS, CPA, CTR, Creative Fatigue, Hook, Conversion Rate, Testing, Scaling).\n";
+        $sample_format_guide .= "- Paragraf penutup dengan kesimpulan yang tajam dan ajakan santai berdiskusi.\n";
+
+        // 2. Ambil 15 judul artikel terakhir untuk menghindari duplikasi
+        $recent_posts = $this->db->select('title')->order_by('blog_id', 'DESC')->limit(15)->get('blog')->result();
+        $existing_titles = [];
+        foreach ($recent_posts as $p) {
+            $existing_titles[] = $p->title;
+        }
+
+        // 3. Ambil daftar kategori yang ada
+        $all_categories = $this->db->select('blog_category_id, title')->get('blog_categories')->result();
+        $cat_list_str = "";
+        foreach ($all_categories as $c) {
+            $cat_list_str .= "- ID " . $c->blog_category_id . ": " . $c->title . "\n";
+        }
+
+        // 4. Susun prompt untuk Gemini Proxy
+        $prompt = "Anda adalah Moh. Ali Murtado, seorang praktisi Digital Advertising profesional di Indonesia, Co-Founder Impacta.\n";
+        $prompt .= $sample_format_guide . "\n";
+        $prompt .= "Daftar kategori yang tersedia di website Anda:\n" . $cat_list_str . "\n";
+        $prompt .= "Artikel-artikel yang SUDAH PERNAH ditulis sebelumnya (JANGAN MEMBUAT TOPIK YANG SAMA):\n- " . implode("\n- ", $existing_titles) . "\n\n";
+
+        if (!empty($custom_topic)) {
+            $prompt .= "TOPIK YANG DIMINTA PENGGUNA: \"" . $custom_topic . "\"\n";
+            if ($target_category_id > 0) {
+                $prompt .= "PILIH KATEGORI DENGAN ID: " . $target_category_id . "\n";
+            } else {
+                $prompt .= "PILIH KATEGORI PALING COCOK DARI DAFTAR KATEGORI DI ATAS.\n";
+            }
+        } else {
+            if ($target_category_id > 0) {
+                $prompt .= "Buatkan 1 artikel tren terbaru yang belum pernah dibahas untuk KATEGORI DENGAN ID: " . $target_category_id . ".\n";
+            } else {
+                $prompt .= "Buatkan 1 artikel tren periklanan digital terbaru yang berbobot dan belum pernah dibahas dari salah satu kategori di atas.\n";
+            }
+        }
+
+        $prompt .= "\nOUTPUT WAJIB MURNI DALAM FORMAT JSON (tanpa kutip markdown ```json) dengan skema:\n";
+        $prompt .= "{\n";
+        $prompt .= "  \"title\": \"Judul artikel lengkap (max 90 karakter)\",\n";
+        $prompt .= "  \"category_id\": 19,\n";
+        $prompt .= "  \"short_description\": \"Ringkasan sangat singkat artikel (MAKSIMAL 90 karakter)\",\n";
+        $prompt .= "  \"meta_description\": \"Deskripsi SEO untuk pencarian Google (140-160 karakter)\",\n";
+        $prompt .= "  \"meta_keywords\": \"5-8 kata kunci relevan dipisahkan koma\",\n";
+        $prompt .= "  \"image_keyword\": \"digital advertising marketing\",\n";
+        $prompt .= "  \"content\": \"Konten lengkap dalam format HTML (gunakan <h2>, <h3>, <p>, <ul>, <li>, <table>, <tr>, <th>, <td>, <strong>). Panjang minimal 600-900 kata.\"\n";
+        $prompt .= "}";
+
+        // 5. Panggil Gemini Proxy Lokal
+        $ch = curl_init("http://127.0.0.1:56675/v1/chat/completions");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "Authorization: Bearer sk-gemini-proxy-alibaba-887",
+            "Content-Type: application/json"
+        ]);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+            "model" => "gemini-flash",
+            "messages" => [
+                ["role" => "user", "content" => $prompt]
+            ],
+            "stream" => false
+        ]));
+        $raw_response = curl_exec($ch);
+        $curl_error = curl_error($ch);
+        curl_close($ch);
+
+        if (!$raw_response) {
+            $this->_json_output(['success' => false, 'message' => 'Gagal menghubungi Gemini Proxy: ' . $curl_error]);
+        }
+
+        $api_json = json_decode($raw_response, true);
+        $content_str = $api_json['choices'][0]['message']['content'] ?? '';
+        if (empty($content_str)) {
+            $this->_json_output(['success' => false, 'message' => 'AI tidak menghasilkan konten. Silakan coba lagi.']);
+        }
+
+        // Bersihkan formatting markdown jika ada
+        $clean_json = preg_replace('/^```(?:json)?\s*/i', '', trim($content_str));
+        $clean_json = preg_replace('/\s*```$/i', '', $clean_json);
+        $article_data = json_decode($clean_json, true);
+
+        if (!$article_data || empty($article_data['title']) || empty($article_data['content'])) {
+            $this->_json_output(['success' => false, 'message' => 'Gagal membaca format JSON dari AI. Silakan coba lagi.']);
+        }
+
+        $final_title = trim($article_data['title']);
+        $final_content = trim($article_data['content']);
+        $final_category = !empty($article_data['category_id']) ? (int)$article_data['category_id'] : ($target_category_id > 0 ? $target_category_id : 19);
+        $final_short = !empty($article_data['short_description']) ? mb_substr(trim(strip_tags($article_data['short_description'])), 0, 95) : mb_substr(strip_tags($final_content), 0, 90) . '...';
+        $final_meta_desc = !empty($article_data['meta_description']) ? trim(strip_tags($article_data['meta_description'])) : $final_short;
+        $final_keywords = !empty($article_data['meta_keywords']) ? trim(strip_tags($article_data['meta_keywords'])) : 'digital marketing, ads';
+
+        // 6. Download Cover Image
+        $img_keyword = !empty($article_data['image_keyword']) ? urlencode($article_data['image_keyword']) : 'digital-marketing';
+        $cover_url = "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&h=630&q=80";
+        $custom_img_url = "https://source.unsplash.com/1200x630/?" . $img_keyword;
+
+        $image_filename = $this->_download_ai_image($custom_img_url, $final_title);
+        if (!$image_filename) {
+            $image_filename = $this->_download_ai_image($cover_url, $final_title);
+        }
+
+        // 7. Simpan ke database
+        $insert_data = [
+            'title'             => $final_title,
+            'description'       => $final_content,
+            'short_description' => $final_short,
+            'image'             => $image_filename ?: '',
+            'blog_category_id'  => $final_category,
+            'author'            => 'Moh. Ali Murtado',
+            'datetime'          => date('Y-m-d H:i:s'),
+            'visits'            => 0,
+            'display'           => $display,
+            'meta_keywords'     => $final_keywords,
+            'meta_description'  => $final_meta_desc
+        ];
+
+        $this->db->insert('blog', $insert_data);
+        $blog_id = $this->db->insert_id();
+
+        $slug = function_exists('sanitize') ? sanitize($final_title) : url_title($final_title, '-', TRUE);
+        $post_url = site_url('post/' . $blog_id . '-' . $slug);
+        $edit_url = site_url('admin/blog/manage/' . $blog_id);
+
+        $this->_json_output([
+            'success' => true,
+            'message' => 'Artikel berhasil dibuat ' . ($display === '1' ? 'dan langsung diterbitkan!' : 'dan disimpan sebagai Draft.'),
+            'data' => [
+                'blog_id'   => $blog_id,
+                'title'     => $final_title,
+                'post_url'  => $post_url,
+                'edit_url'  => $edit_url,
+                'display'   => $display
+            ]
+        ]);
+    }
+
+    private function _download_ai_image($url, $title) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; AlimurtadoBot/1.0)');
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $img_data = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $content_type = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        curl_close($ch);
+
+        if ($http_code != 200 || empty($img_data) || strlen($img_data) < 1000) {
+            return false;
+        }
+
+        $ext = '.jpg';
+        if (strpos($content_type, 'png') !== false) $ext = '.png';
+        elseif (strpos($content_type, 'webp') !== false) $ext = '.webp';
+
+        $slug = function_exists('sanitize') ? sanitize($title) : 'blog-cover';
+        $slug = substr($slug, 0, 35);
+        $filename = $slug . '-' . time() . $ext;
+
+        $dir = FCPATH . 'cdn/blog/';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+
+        if (@file_put_contents($dir . $filename, $img_data)) {
+            return $filename;
+        }
+        return false;
+    }
+
+    public function toggle_cron() {
+        $current = $this->db->where('key', 'ai_blog_cron_status')->get('settings')->row();
+        $current_val = $current ? $current->value : '0';
+
+        $requested_status = $this->input->post('status');
+        if ($requested_status !== null && ($requested_status === '1' || $requested_status === '0')) {
+            $new_status = $requested_status;
+        } else {
+            $new_status = ($current_val === '1') ? '0' : '1';
+        }
+
+        $this->db->where('key', 'ai_blog_cron_status')->update('settings', ['value' => $new_status]);
+
+        $queue_count = $this->db->where('nama_file IS NULL', null, false)->where('terpublish', 0)->count_all_results('konten_publish');
+
+        $this->_json_output([
+            'success'     => true,
+            'status'      => $new_status,
+            'queue_count' => $queue_count,
+            'message'     => ($new_status === '1') ? 'Auto-Publish Cron berhasil DIAKTIFKAN (ON).' : 'Auto-Publish Cron berhasil DINONAKTIFKAN (OFF).'
+        ]);
+    }
+
+    public function process_queue_manual() {
+        $this->load->library('ai_blog_queue');
+        $result = $this->ai_blog_queue->process(true); // force run regardless of cron toggle
+        $this->_json_output($result);
+    }
+
+    private function _json_output($data) {
+        $this->output
+             ->set_content_type('application/json', 'utf-8')
+             ->set_output(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        echo $this->output->get_output();
+        exit;
+    }
 }

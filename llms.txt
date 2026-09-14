@@ -1,0 +1,21 @@
+# Alimurtado.com - Digital Advertising Professional
+
+This website is the personal and professional blog of Ali Murtado, a Digital Advertiser.
+Topics covered include Digital Advertising, Personal Branding, Budgeting & Scaling Ads.
+
+## About the Author
+Ali Murtado is an expert in digital advertising, focusing on helping young professionals (Gen Z and Millennials) build their careers and personal branding in the digital marketing space.
+
+## Key Content Themes
+- **Digital Advertising Strategies**: Best practices, budgeting, and scaling ads for maximum ROI.
+- **Personal Branding for Digital Advertisers**: How to build a standout professional identity.
+- **Career Guides**: Advice for Digital Marketers in their 20s and 30s.
+
+## Target Audience
+Digital marketers, advertisers, Gen Z, Millennials looking to scale their ad campaigns and build a strong professional brand in the digital era.
+
+## Structure
+- /blog : Contains articles related to Digital Advertising and Personal Branding.
+- /post : Detailed post content and guides.
+
+*This file is provided for Answer Engine Optimization (AEO) and LLM indexing purposes.*

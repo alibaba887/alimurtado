@@ -5,8 +5,7 @@ class Layout {
     public $layout = 'default';
     public $CI;
     
-    public function render() {
-        $this->CI = &get_instance();
+    public function render() { $this->CI = &get_instance();
         $output = $this->CI->output->get_output();
         
 // $this->CI->style->stylePath        
@@ -15,8 +14,7 @@ class Layout {
         if (isset($this->CI->layout))
             $this->layout = $this->CI->layout;
 
-        if ($this->layout == 'none')
-            return;
+        if ($this->layout == 'none') { echo $output; return; }
 
         if ($this->CI->output->enable_profiler === TRUE && $this->layout !== 'ajax') {
             $this->CI->load->library('profiler');

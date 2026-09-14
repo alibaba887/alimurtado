@@ -5,6 +5,10 @@ class Login extends CI_Controller {
     public function index() {
         $this->lang->load('global');
         $this->layout = 'ajax';
+        if ($this->session->userdata('user_id')) {
+            redirect('admin/dashboard');
+        }
+
         $this->load->library('form_validation');
         $this->form_validation->set_rules('email', 'lang:global_email', 'required|callback_check');
         $this->form_validation->set_rules('password', 'lang:global_password', 'required');
@@ -14,10 +18,10 @@ class Login extends CI_Controller {
             $user = $this->db->where('email', $this->input->post('email'))->where('password', md5($this->input->post('password')))->get('users')->row();
             $this->session->set_userdata(array(
                 'email' => $user->email,
-                'image' => $user->image,
+                'image' => isset($user->image) ? $user->image : '',
                 'user_id' => $user->user_id,
                 'username' => $user->username,
-                'image' => $user->image
+                'image' => isset($user->image) ? $user->image : ''
             ));
             redirect('admin/dashboard');
         }

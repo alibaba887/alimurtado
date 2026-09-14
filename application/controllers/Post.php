@@ -16,10 +16,16 @@ class Post extends CIF_Controller {
         $id = (int) $id;
         if (!$id)
             show_404();
-        if (!$this->db
-                        ->where('blog_id', $id)
-                        ->where('display', '1')
-                        ->get('blog')->row())
+        $is_admin = (bool) session('user_id');
+        if ($is_admin || $this->input->get('preview')) {
+            header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+            header("Pragma: no-cache");
+        }
+        $check = $this->db->where('blog_id', $id);
+        if (!$is_admin) {
+            $check->where('display', '1');
+        }
+        if (!$check->get('blog')->row())
             show_404();
         $this->db->where('blog_id', $id)->set('visits', 'visits +1 ', false)->update('blog');
         $this->data['item'] = $this->db

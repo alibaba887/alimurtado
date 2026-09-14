@@ -9,6 +9,22 @@ function config($val, $set = FALSE) {
         return $Muh->config->item($val);
 }
 
+function clean_meta($val) {
+    if (empty($val)) return '';
+    $val = html_entity_decode($val, ENT_QUOTES, 'UTF-8');
+    if (preg_match('/name=["\']twitter:site["\'][^>]*content=["\']([^"\']+)["\']/is', $val, $matches)) {
+        $handle = trim($matches[1]);
+        if (stripos($handle, 'yourtwitterhandle') !== false) return '';
+        return htmlspecialchars($handle, ENT_QUOTES, 'UTF-8');
+    }
+    if (preg_match('/content=["\'](.*?)["\']/is', $val, $matches)) {
+        return htmlspecialchars(trim($matches[1]), ENT_QUOTES, 'UTF-8');
+    }
+    $clean = strip_tags(trim($val));
+    if (stripos($clean, 'yourtwitterhandle') !== false) return '';
+    return htmlspecialchars($clean, ENT_QUOTES, 'UTF-8');
+}
+
 
 function session($val, $set = FALSE) {
     $Muh = &get_instance();

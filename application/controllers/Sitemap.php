@@ -2,6 +2,7 @@
 
 class Sitemap extends CI_Controller {
 
+    public $layout = "none";
     public $model = 'Projects_model';
 
     public function __construct() {

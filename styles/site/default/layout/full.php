@@ -5,23 +5,30 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
         <meta name="author" content="Moh. Ali Murtado <alibaba@digasdev.com>" />
-        <meta name="description" content="<?php echo config('meta_description') ?>">
-        <meta name="Keywords" content="<?php echo config('meta_keywords') ?>">
-        <meta name="robots" content="<?php echo config('meta_robots') ?>"/>
+        <meta name="description" content="<?php echo clean_meta(config('meta_description')) ?>">
+        <meta name="keywords" content="<?php echo clean_meta(config('meta_keywords')) ?>">
+        <meta name="robots" content="<?php echo clean_meta(config('meta_robots')) ?>"/>
         <meta property="og:locale" content="en_US"/>
         <meta property="og:type" content="website"/>
-        <meta property="og:title" content="<?php echo config('title') ?>"/>
-        <meta property="og:description" content="<?php echo config('meta_description') ?>"/>
+        <meta property="og:title" content="<?php echo clean_meta(config('title')) ?>"/>
+        <meta property="og:description" content="<?php echo clean_meta(config('meta_description')) ?>"/>
         <meta property="og:url" content="<?php echo current_url() ?>"/>
-        <meta property="og:site_name" content="<?php echo config('title') ?>"/>
+        <link rel="canonical" href="<?php echo current_url() ?>"/>
+        <meta property="og:site_name" content="<?php echo clean_meta(config('title')) ?>"/>
         <meta property="og:image" content="<?php echo base_url() ?>cdn/settings/<?php echo config('favicon') ?>"/>
-        <meta name="twitter:card" content="<?php echo config("title") ?>">
-        <meta name="twitter:image" content="<?php echo config("favicon") ?>">
-        <meta name="twitter:title" content="<?php echo config("title") ?>">
-        <meta name="twitter:description" content="<?php echo config('meta_description') ?>">
-        <meta name="twitter:site" content="@<?php echo config('meta_twitter_site') ?>">
+        <meta name="twitter:card" content="summary">
+        <meta name="twitter:image" content="<?php echo base_url() ?>cdn/settings/<?php echo config('favicon') ?>">
+        <meta name="twitter:title" content="<?php echo clean_meta(config('title')) ?>">
+        <meta name="twitter:description" content="<?php echo clean_meta(config('meta_description')) ?>">
+        <?php 
+            $twitter_site = clean_meta(config('meta_twitter_site'));
+            if ($twitter_site): 
+                $twitter_site = '@' . ltrim($twitter_site, '@');
+        ?>
+        <meta name="twitter:site" content="<?php echo $twitter_site ?>">
+        <?php endif; ?>
         <link rel="shortcut icon" href="<?php echo base_url() ?>cdn/settings/<?php echo config('favicon') ?>" type="image/x-icon" />
-        <title><?php echo config('title') ?></title>
+        <title><?php echo clean_meta(config('title')) ?></title>
         <!-- Bootstrap -->
         <link rel="stylesheet" href="<?php echo STYLE_CSS ?>/bootstrap.min.css" type="text/css">
         <!-- Animation -->
@@ -70,6 +77,27 @@
                 </script>
             <?php endif ?>
         <?php endif ?>
+        <!-- JSON-LD for AEO / LLM SEO -->
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Person",
+          "name": "<?php echo config('name') ?>",
+          "jobTitle": "Digital Advertiser",
+          "url": "<?php echo base_url() ?>",
+          "image": "<?php echo base_url() ?>cdn/about/<?php echo config('avatar') ?>",
+          "sameAs": [
+            "https://alimurtado.com"
+          ],
+          "description": "<?php echo config('meta_description') ?>",
+          "knowsAbout": [
+            "Digital Advertising",
+            "Personal Branding",
+            "Budgeting",
+            "Scaling Ads"
+          ]
+        }
+        </script>
     </head>
     <body <?php if (config('display_dark_mode') == '1'): ?>class="dark"<?php endif ?>>
         <!-- preloader -->
