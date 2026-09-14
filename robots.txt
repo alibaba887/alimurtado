@@ -1,4 +1,23 @@
 User-agent: *
 Allow: /
-Sitemap:https://alimurtado.com/sitemap.xml
-Sitemap:https://alimurtado.com/sitemap.xml
+
+# AI Crawlers & Search Engines (Allowed for Citations & LLM Indexing)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+Sitemap: https://alimurtado.com/sitemap.xml

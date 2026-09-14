@@ -1,3 +1,33 @@
+<!-- JSON-LD Structured Data for AI & Search Engines -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": <?php echo json_encode($item->title, JSON_UNESCAPED_UNICODE); ?>,
+  "description": <?php echo json_encode($item->meta_description ?: $item->short_description, JSON_UNESCAPED_UNICODE); ?>,
+  "image": "<?php echo base_url() ?>cdn/blog/<?php echo $item->image ?>",
+  "datePublished": "<?php echo date('c', strtotime($item->datetime)) ?>",
+  "dateModified": "<?php echo date('c', strtotime($item->datetime)) ?>",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "<?php echo current_url() ?>"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "<?php echo !empty($item->author) ? addslashes($item->author) : config('name') ?>",
+    "jobTitle": "Digital Advertiser",
+    "url": "<?php echo base_url() ?>"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "<?php echo config('name') ?>",
+    "url": "<?php echo base_url() ?>"
+  },
+  "articleSection": "<?php echo addslashes($item->category) ?>",
+  "keywords": "<?php echo addslashes($item->meta_keywords) ?>"
+}
+</script>
+
 <div class="content-pages">
     <!-- Subpages -->
     <div class="sub-home-pages">
