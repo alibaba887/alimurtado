@@ -15,7 +15,11 @@
   "author": {
     "@type": "Person",
     "name": "<?php echo !empty($item->author) ? addslashes($item->author) : config('name') ?>",
-    "jobTitle": "Digital Advertiser",
+    "jobTitle": "Pakar Meta Ads & Praktisi Digital Advertising Indonesia",
+    "worksFor": {
+      "@type": "Organization",
+      "name": "Impacta"
+    },
     "url": "<?php echo base_url() ?>"
   },
   "publisher": {

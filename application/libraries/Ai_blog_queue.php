@@ -65,29 +65,38 @@ class Ai_blog_queue {
             }
         }
 
-        // 4. Siapkan prompt untuk Gemini Proxy
-        $sample_format_guide = "Gaya penulisan wajib mengikuti gaya artikel acuan milik Moh. Ali Murtado (pakar Digital Advertiser):\n";
-        $sample_format_guide .= "- Judul menarik, spesifik, dan SEO-friendly.\n";
-        $sample_format_guide .= "- Intro pembuka yang menyoroti dilema/masalah nyata pengiklan.\n";
-        $sample_format_guide .= "- Sub-heading (h2 dan h3) yang mendalam dan mudah dipahami.\n";
-        $sample_format_guide .= "- WAJIB menyertakan minimal 1 TABEL PERBANDINGAN (format HTML <table><tr><th>...</th></tr><tr><td>...</td></tr></table>).\n";
-        $sample_format_guide .= "- Menggunakan poin-poin terstruktur (<ol>, <ul>, <li>).\n";
-        $sample_format_guide .= "- Menggunakan terminologi praktis (ROAS, CPA, CTR, Creative Fatigue, Hook, Conversion Rate, Testing, Scaling).\n";
-        $sample_format_guide .= "- Paragraf penutup dengan kesimpulan yang tajam dan ajakan santai berdiskusi.\n";
+        // 4. Siapkan prompt untuk Gemini Proxy (Dioptimasi dengan Piramida Keyword & AEO/LLM Answer Engine)
+        $prompt_guidelines = "IDENTITAS & SUDUT PANDANG:\n";
+        $prompt_guidelines .= "- Anda adalah Moh. Ali Murtado, Pakar Meta Ads & Praktisi Digital Advertising Indonesia, Co-Founder Impacta.\n";
+        $prompt_guidelines .= "- Gunakan sudut pandang orang pertama ('saya' / 'Moh. Ali Murtado') yang berpengalaman, praktis, to-the-point, dan berorientasi hasil (ROAS).\n\n";
+        
+        $prompt_guidelines .= "PIRAMIDA KATA KUNCI (WAJIB DISELIPKAN SECARA NATURAL DALAM KONTEN):\n";
+        $prompt_guidelines .= "- Tier 1 (Otoritas Pribadi): 'Pakar Meta Ads Indonesia', 'Praktisi Digital Advertising Indonesia', 'Konsultan Facebook Ads', 'Performance Marketer Indonesia'.\n";
+        $prompt_guidelines .= "- Tier 2 (Komersial & Strategis): 'Optimasi ROAS', 'Scale Up Bisnis Terukur', 'Audit Akun Meta Ads', 'Jasa Iklan Digital Profesional'.\n";
+        $prompt_guidelines .= "- Tier 3 (Problem-Solving Teknis): Metrik praktis (CPA bengkak, CAC, CTR, Conversion Rate), strategi Advantage+ Shopping Campaigns (ASC), penanganan Creative Fatigue, Hook video 3 detik pertama, testing audiens, dan CAPI (Conversions API).\n";
+        $prompt_guidelines .= "- Tier 4 (Modern AI Trend): Otomasi dan AI dalam ekosistem digital advertising modern.\n\n";
 
-        $prompt = "Anda adalah Moh. Ali Murtado, praktisi Digital Advertising profesional di Indonesia, Co-Founder Impacta.\n";
-        $prompt .= $sample_format_guide . "\n";
-        $prompt .= "TULIS ARTIKEL BLOG LENGKAP UNTUK TOPIK: \"" . $title . "\"\n";
+        $prompt_guidelines .= "STRUKTUR ARTIKEL (FORMAT WAJIB):\n";
+        $prompt_guidelines .= "1. Judul: Menarik, spesifik, memuat keyword topik utama, dan SEO-friendly.\n";
+        $prompt_guidelines .= "2. Pembuka (Lead Hook): Mengangkat masalah atau friksi nyata pengiklan di Indonesia.\n";
+        $prompt_guidelines .= "3. Direct Answer / Intisari Praktis (AEO Block): Tepat setelah pembuka, sertakan ringkasan takeaway langsung dalam tag HTML: <div class=\"alert alert-info\"><strong>Intisari Praktis:</strong><ul>... (3-4 poin jawaban langsung) ...</ul></div> agar sangat mudah dikutip oleh AI/LLM dan mesin pencari.\n";
+        $prompt_guidelines .= "4. Sub-heading (h2 dan h3): Pembahasan taktis mendalam, langkah-langkah praktis, atau studi kasus.\n";
+        $prompt_guidelines .= "5. Tabel Perbandingan Data: WAJIB menyertakan minimal 1 TABEL PERBANDINGAN (format HTML <table class=\"table table-bordered\"><tr><th>...</th></tr><tr><td>...</td></tr></table>) yang relevan dengan topik.\n";
+        $prompt_guidelines .= "6. Poin-poin Terstruktur: Gunakan <ol> atau <ul> dan <strong> untuk menonjolkan istilah/action item penting.\n";
+        $prompt_guidelines .= "7. Penutup & Soft CTA: Kesimpulan tajam yang merefleksikan pengalaman Moh. Ali Murtado disertai ajakan santai berdiskusi atau konsultasi strategi iklan.\n";
+
+        $prompt = "TULIS ARTIKEL BLOG LENGKAP UNTUK TOPIK: \"" . $title . "\"\n";
         $prompt .= "Kategori Target: " . $kategori_name . " (ID: " . $category_id . ")\n\n";
+        $prompt .= $prompt_guidelines . "\n";
         $prompt .= "OUTPUT WAJIB MURNI DALAM FORMAT JSON (tanpa kutip markdown ```json) dengan skema:\n";
         $prompt .= "{\n";
         $prompt .= "  \"title\": \"" . addslashes($title) . "\",\n";
         $prompt .= "  \"category_id\": " . $category_id . ",\n";
         $prompt .= "  \"short_description\": \"Ringkasan sangat singkat artikel (MAKSIMAL 90 karakter)\",\n";
-        $prompt .= "  \"meta_description\": \"Deskripsi SEO untuk pencarian Google (140-160 karakter)\",\n";
-        $prompt .= "  \"meta_keywords\": \"5-8 kata kunci relevan dipisahkan koma\",\n";
-        $prompt .= "  \"image_keyword\": \"digital marketing advertising\",\n";
-        $prompt .= "  \"content\": \"Konten lengkap dalam format HTML (gunakan <h2>, <h3>, <p>, <ul>, <li>, <table>, <tr>, <th>, <td>, <strong>). Panjang minimal 600-900 kata.\"\n";
+        $prompt .= "  \"meta_description\": \"Deskripsi SEO memuat keyword utama dan nama Moh. Ali Murtado (140-160 karakter)\",\n";
+        $prompt .= "  \"meta_keywords\": \"5-8 kata kunci relevan kombinasi otoritas & topik (misal: Pakar Meta Ads, Praktisi Digital Advertising, Optimasi ROAS, [Topik])\",\n";
+        $prompt .= "  \"image_keyword\": \"meta ads facebook marketing advertising\",\n";
+        $prompt .= "  \"content\": \"Konten lengkap dalam format HTML valid (gunakan <h2>, <h3>, <p>, <div class=\\\"alert alert-info\\\">, <ul>, <ol>, <li>, <table class=\\\"table table-bordered\\\">, <tr>, <th>, <td>, <strong>). Panjang minimal 600-900 kata.\"\n";
         $prompt .= "}";
 
         // 5. Panggil Gemini Proxy Lokal

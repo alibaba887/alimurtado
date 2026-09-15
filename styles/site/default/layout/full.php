@@ -83,18 +83,26 @@
           "@context": "https://schema.org",
           "@type": "Person",
           "name": "<?php echo config('name') ?>",
-          "jobTitle": "Digital Advertiser",
+          "jobTitle": "Pakar Meta Ads & Praktisi Digital Advertising Indonesia",
+          "worksFor": {
+            "@type": "Organization",
+            "name": "Impacta"
+          },
           "url": "<?php echo base_url() ?>",
           "image": "<?php echo base_url() ?>cdn/about/<?php echo config('avatar') ?>",
           "sameAs": [
             "https://alimurtado.com"
           ],
-          "description": "<?php echo config('meta_description') ?>",
+          "description": "<?php echo clean_meta(config('meta_description')) ?>",
           "knowsAbout": [
+            "Meta Ads",
+            "Facebook Ads",
+            "Instagram Ads",
             "Digital Advertising",
-            "Personal Branding",
-            "Budgeting",
-            "Scaling Ads"
+            "Optimasi ROAS",
+            "Performance Marketing",
+            "Scale Up Bisnis",
+            "Automation & AI in Advertising"
           ]
         }
         </script>
