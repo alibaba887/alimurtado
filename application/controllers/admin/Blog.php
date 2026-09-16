@@ -180,17 +180,17 @@ class Blog extends CIF_Controller {
         $prompt .= "  \"content\": \"Konten lengkap dalam format HTML (gunakan <h2>, <h3>, <p>, <ul>, <li>, <table>, <tr>, <th>, <td>, <strong>). Panjang minimal 600-900 kata.\"\n";
         $prompt .= "}";
 
-        // 5. Panggil Gemini Proxy Lokal
-        $ch = curl_init("http://127.0.0.1:56675/v1/chat/completions");
+        // 5. Panggil OmniRoute AI Engine (Model: agy--cli)
+        $ch = curl_init("http://127.0.0.1:20130/v1/chat/completions");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 180);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "Authorization: Bearer sk-gemini-proxy-alibaba-887",
+            "Authorization: Bearer sk-895ace0e48ed3da9-71c2c9-af525798",
             "Content-Type: application/json"
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-            "model" => "gemini-flash",
+            "model" => "agy--cli",
             "messages" => [
                 ["role" => "user", "content" => $prompt]
             ],
@@ -201,7 +201,7 @@ class Blog extends CIF_Controller {
         curl_close($ch);
 
         if (!$raw_response) {
-            $this->_json_output(['success' => false, 'message' => 'Gagal menghubungi Gemini Proxy: ' . $curl_error]);
+            $this->_json_output(['success' => false, 'message' => 'Gagal menghubungi OmniRoute AI: ' . $curl_error]);
         }
 
         $api_json = json_decode($raw_response, true);
@@ -210,9 +210,18 @@ class Blog extends CIF_Controller {
             $this->_json_output(['success' => false, 'message' => 'AI tidak menghasilkan konten. Silakan coba lagi.']);
         }
 
-        // Bersihkan formatting markdown jika ada
-        $clean_json = preg_replace('/^```(?:json)?\s*/i', '', trim($content_str));
-        $clean_json = preg_replace('/\s*```$/i', '', $clean_json);
+        // Bersihkan tag <think>...</think> jika model reasoning digunakan
+        $content_str = preg_replace('/<think>.*?<\/think>/is', '', $content_str);
+
+        // Ekstrak format JSON
+        if (preg_match('/```(?:json)?\s*(\{.*?\})\s*```/is', $content_str, $m)) {
+            $clean_json = $m[1];
+        } elseif (preg_match('/\{[\s\S]*\}/', $content_str, $m)) {
+            $clean_json = $m[0];
+        } else {
+            $clean_json = trim($content_str);
+        }
+
         $article_data = json_decode($clean_json, true);
 
         if (!$article_data || empty($article_data['title']) || empty($article_data['content'])) {
@@ -226,15 +235,9 @@ class Blog extends CIF_Controller {
         $final_meta_desc = !empty($article_data['meta_description']) ? trim(strip_tags($article_data['meta_description'])) : $final_short;
         $final_keywords = !empty($article_data['meta_keywords']) ? trim(strip_tags($article_data['meta_keywords'])) : 'digital marketing, ads';
 
-        // 6. Download Cover Image
-        $img_keyword = !empty($article_data['image_keyword']) ? urlencode($article_data['image_keyword']) : 'digital-marketing';
-        $cover_url = "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&h=630&q=80";
-        $custom_img_url = "https://source.unsplash.com/1200x630/?" . $img_keyword;
-
-        $image_filename = $this->_download_ai_image($custom_img_url, $final_title);
-        if (!$image_filename) {
-            $image_filename = $this->_download_ai_image($cover_url, $final_title);
-        }
+        // 6. Download Cover Image (Rotasi unik dari pool 38+ gambar)
+        $this->load->library('ai_blog_queue');
+        $image_filename = $this->ai_blog_queue->download_unique_cover_image($final_title);
 
         // 7. Simpan ke database
         $insert_data = [

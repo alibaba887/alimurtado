@@ -146,17 +146,17 @@ class Ai_blog_queue {
         $prompt .= "  \"content\": \"Konten lengkap dalam format HTML valid (gunakan <h2>, <h3>, <p>, <div class=\\\"alert alert-info\\\">, <ul>, <ol>, <li>, <table class=\\\"table table-bordered\\\">, <tr>, <th>, <td>, <strong>). Panjang minimal 600-900 kata.\"\n";
         $prompt .= "}";
 
-        // 5. Panggil Gemini Proxy Lokal
-        $ch = curl_init("http://127.0.0.1:56675/v1/chat/completions");
+        // 5. Panggil OmniRoute AI Engine (Model: agy--cli)
+        $ch = curl_init("http://127.0.0.1:20130/v1/chat/completions");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 180);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "Authorization: Bearer sk-gemini-proxy-alibaba-887",
+            "Authorization: Bearer sk-895ace0e48ed3da9-71c2c9-af525798",
             "Content-Type: application/json"
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-            "model" => "gemini-flash",
+            "model" => "agy--cli",
             "messages" => [
                 ["role" => "user", "content" => $prompt]
             ],
@@ -170,7 +170,7 @@ class Ai_blog_queue {
             return [
                 'success' => false,
                 'code'    => 'proxy_connection_failed',
-                'message' => 'Gagal menghubungi Gemini Proxy: ' . $curl_error
+                'message' => 'Gagal menghubungi OmniRoute AI: ' . $curl_error
             ];
         }
 
@@ -184,8 +184,18 @@ class Ai_blog_queue {
             ];
         }
 
-        $clean_json = preg_replace('/^```(?:json)?\s*/i', '', trim($content_str));
-        $clean_json = preg_replace('/\s*```$/i', '', $clean_json);
+        // Bersihkan tag <think>...</think> jika model reasoning digunakan
+        $content_str = preg_replace('/<think>.*?<\/think>/is', '', $content_str);
+
+        // Ekstrak blok JSON
+        if (preg_match('/```(?:json)?\s*(\{.*?\})\s*```/is', $content_str, $m)) {
+            $clean_json = $m[1];
+        } elseif (preg_match('/\{[\s\S]*\}/', $content_str, $m)) {
+            $clean_json = $m[0];
+        } else {
+            $clean_json = trim($content_str);
+        }
+
         $article_data = json_decode($clean_json, true);
 
         if (!$article_data || empty($article_data['content'])) {
