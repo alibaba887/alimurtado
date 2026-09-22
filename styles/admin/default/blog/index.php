@@ -20,10 +20,44 @@
 
 </div>
 
+<style>
+@media (max-width: 767px) {
+    .blog-cron-row {
+        display: block !important;
+    }
+    .blog-cron-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    .blog-cron-actions .btn {
+        width: 100% !important;
+        margin-right: 0 !important;
+        min-width: 0 !important;
+    }
+    .panel-heading .panel-options {
+        float: none !important;
+        position: static !important;
+        margin-top: 10px;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px;
+    }
+    .panel-heading .panel-options .btn {
+        flex: 1 1 auto;
+        margin-right: 0 !important;
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+        text-align: center;
+    }
+}
+</style>
+
 <!-- Auto-Publish Cron Widget -->
 <div class="panel panel-default" style="border-left: 4px solid #667eea; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 25px;">
     <div class="panel-body" style="padding: 18px 22px;">
-        <div class="row" style="display: flex; align-items: center; flex-wrap: wrap;">
+        <div class="row blog-cron-row" style="display: flex; align-items: center; flex-wrap: wrap;">
             <div class="col-md-7 col-sm-12">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
                     <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #2c2e2f;">
@@ -44,14 +78,16 @@
                 </div>
             </div>
             <div class="col-md-5 col-sm-12 text-right" style="margin-top: 10px;">
-                <button type="button" id="btn-toggle-cron" class="btn <?php echo $cron_status == '1' ? 'btn-danger' : 'btn-success'; ?> btn-sm" onclick="toggleCronStatus()" style="font-weight: 600; min-width: 165px; margin-right: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <i class="fa <?php echo $cron_status == '1' ? 'fa-power-off' : 'fa-play'; ?>" id="btn-toggle-icon"></i>
-                    <span id="btn-toggle-text"><?php echo $cron_status == '1' ? 'Matikan Auto-Publish' : 'Nyalakan Auto-Publish'; ?></span>
-                </button>
-                <button type="button" id="btn-manual-queue" class="btn btn-blue btn-sm" onclick="processQueueManual()" style="font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" <?php echo $queue_count == 0 ? 'disabled' : ''; ?>>
-                    <i class="fa fa-bolt" id="btn-manual-icon"></i>
-                    <span id="btn-manual-text">⚡ Proses 1 Sekarang</span>
-                </button>
+                <div class="blog-cron-actions">
+                    <button type="button" id="btn-toggle-cron" class="btn <?php echo $cron_status == '1' ? 'btn-danger' : 'btn-success'; ?> btn-sm" onclick="toggleCronStatus()" style="font-weight: 600; min-width: 165px; margin-right: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <i class="fa <?php echo $cron_status == '1' ? 'fa-power-off' : 'fa-play'; ?>" id="btn-toggle-icon"></i>
+                        <span id="btn-toggle-text"><?php echo $cron_status == '1' ? 'Matikan Auto-Publish' : 'Nyalakan Auto-Publish'; ?></span>
+                    </button>
+                    <button type="button" id="btn-manual-queue" class="btn btn-blue btn-sm" onclick="processQueueManual()" style="font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" <?php echo $queue_count == 0 ? 'disabled' : ''; ?>>
+                        <i class="fa fa-bolt" id="btn-manual-icon"></i>
+                        <span id="btn-manual-text">⚡ Proses 1 Sekarang</span>
+                    </button>
+                </div>
             </div>
         </div>
 

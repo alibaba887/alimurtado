@@ -21,8 +21,274 @@
     </div>
 </div>
 
+<style>
+/* ============================================================
+   RESPONSIVE ENHANCEMENTS FOR BLOG INDEXING & MOBILE DASHBOARD
+   ============================================================ */
+
+/* 1. Counter Cards Mobile Optimization */
+@media (max-width: 767px) {
+    .row-counters > div {
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+    }
+    .xe-widget.xe-counter {
+        padding: 10px 8px !important;
+        margin-bottom: 10px !important;
+    }
+    .xe-widget.xe-counter .xe-icon {
+        width: 36px !important;
+        height: 36px !important;
+        line-height: 36px !important;
+        font-size: 15px !important;
+        border-radius: 6px !important;
+    }
+    .xe-widget.xe-counter .xe-label {
+        margin-left: 44px !important;
+    }
+    .xe-widget.xe-counter .xe-label strong.num {
+        font-size: 17px !important;
+        line-height: 18px !important;
+    }
+    .xe-widget.xe-counter .xe-label span {
+        font-size: 9.5px !important;
+        line-height: 12px !important;
+        display: block;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #stat-last-indexed {
+        font-size: 11px !important;
+        line-height: 16px !important;
+    }
+}
+
+/* 2. Responsive Panels (Engine Status & Auto Scheduling) */
+.responsive-panel-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.schedule-btn-stack {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+.schedule-btn-stack .btn-run-now {
+    flex: 1.5;
+}
+.schedule-sub-btns {
+    display: flex;
+    gap: 8px;
+    flex: 2;
+}
+.schedule-sub-btns .btn {
+    flex: 1;
+}
+
+@media (max-width: 767px) {
+    .responsive-panel-row {
+        display: block !important;
+    }
+    .mobile-align-left {
+        text-align: left !important;
+    }
+    .mobile-w-100 {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    .mobile-mt-12 {
+        margin-top: 12px !important;
+    }
+    
+    /* Engine Panel Badges */
+    .engine-badge-list {
+        gap: 5px !important;
+        margin-bottom: 8px !important;
+    }
+    .engine-badge-list .badge {
+        font-size: 10.5px !important;
+        padding: 4px 8px !important;
+    }
+
+    /* Action Buttons in Engine Panel */
+    .engine-action-btns {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    .engine-action-btns .btn {
+        width: 100% !important;
+        margin-right: 0 !important;
+        margin-bottom: 0 !important;
+        text-align: center;
+    }
+    .engine-action-btns .btn-icon-standalone {
+        padding-left: 42px !important;
+        text-align: center;
+    }
+
+    /* Scheduling Panel Header & Toggle */
+    .schedule-header-flex {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+    }
+    .schedule-toggle-wrapper {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #f8f9fa;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #ebebeb;
+    }
+
+    /* Scheduling Settings Box */
+    .schedule-config-box {
+        max-width: 100% !important;
+        display: block !important;
+        margin-top: 14px !important;
+        padding: 12px !important;
+    }
+    .schedule-btn-stack {
+        display: flex;
+        flex-direction: column !important;
+        gap: 8px !important;
+        margin-top: 10px;
+    }
+    .schedule-btn-stack .btn-run-now {
+        width: 100% !important;
+        padding: 9px 12px !important;
+        font-size: 12px !important;
+    }
+    .schedule-sub-btns {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        flex: none;
+    }
+    .schedule-sub-btns .btn {
+        flex: 1;
+        padding: 7px 5px !important;
+        text-align: center;
+        font-size: 11px !important;
+    }
+
+    /* Cron Guide Box */
+    .cron-guide-group {
+        display: block !important;
+    }
+    .cron-guide-group input {
+        width: 100% !important;
+        border-radius: 4px !important;
+        margin-bottom: 6px !important;
+    }
+    .cron-guide-group .input-group-btn {
+        display: block !important;
+        width: 100% !important;
+    }
+    .cron-guide-group .btn {
+        width: 100% !important;
+        border-radius: 4px !important;
+    }
+}
+
+/* 3. Filter Panel Responsive */
+@media (max-width: 767px) {
+    .filter-tabs-wrapper {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+    .filter-tabs-wrapper .btn-group {
+        display: flex !important;
+        width: 100% !important;
+    }
+    .filter-tabs-wrapper .btn-group .btn {
+        flex: 1;
+        font-size: 10px !important;
+        padding: 6px 2px !important;
+        text-align: center;
+        line-height: 1.2;
+    }
+    .filter-dropdown-col {
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+    }
+    .filter-dropdown-col label {
+        font-size: 9.5px !important;
+        margin-bottom: 2px !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .filter-dropdown-col select {
+        font-size: 11px !important;
+        padding: 4px 6px !important;
+        height: 30px !important;
+    }
+}
+
+/* 4. Main Table Mobile Optimizations */
+.table-indexing-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.table-indexing th {
+    font-size: 12px;
+}
+.table-indexing td {
+    vertical-align: middle !important;
+}
+@media (max-width: 767px) {
+    .table-indexing th, .table-indexing td {
+        font-size: 11px !important;
+        padding: 8px 6px !important;
+    }
+    .table-indexing .badge {
+        font-size: 9.5px !important;
+        padding: 3px 6px !important;
+    }
+    .table-indexing .btn-action-index, 
+    .table-indexing .btn-action-inspect {
+        padding: 5px 8px !important;
+        font-size: 10.5px !important;
+        display: inline-block;
+        margin-bottom: 3px;
+    }
+}
+
+/* 5. Modals Mobile Optimization */
+@media (max-width: 767px) {
+    .modal-dialog {
+        width: 94% !important;
+        margin: 15px auto !important;
+    }
+    .modal-body {
+        padding: 15px !important;
+    }
+    .modal-footer {
+        padding: 12px 15px !important;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .modal-footer .btn {
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        text-align: center;
+    }
+}
+</style>
+
 <!-- STATS SUMMARY CARDS -->
-<div class="row" style="margin-bottom: 20px;">
+<div class="row row-counters" style="margin-bottom: 20px;">
     <div class="col-sm-3 col-xs-6">
         <div class="xe-widget xe-counter xe-counter-blue" style="margin-bottom: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
             <div class="xe-icon">
@@ -75,12 +341,12 @@
 <!-- ACTION & ENGINE STATUS PANEL -->
 <div class="panel panel-default" style="border-left: 4px solid #00b19d; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 25px;">
     <div class="panel-body" style="padding: 20px;">
-        <div class="row" style="display: flex; align-items: center; flex-wrap: wrap;">
+        <div class="row responsive-panel-row">
             <div class="col-md-7 col-sm-12">
                 <h4 style="margin: 0 0 10px 0; font-size: 16px; font-weight: 700; color: #2c2e2f;">
                     <i class="fa fa-tachometer" style="color: #00b19d; margin-right: 6px;"></i> Mesin Indexing & Inspeksi GSC Aktif
                 </h4>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+                <div class="engine-badge-list" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
                     <span class="badge badge-success" style="font-size: 12px; padding: 5px 12px; border-radius: 12px; background-color: #27ae60;">
                         <i class="fa fa-check"></i> IndexNow (Bing / Yandex)
                     </span>
@@ -98,21 +364,23 @@
                     Anda dapat memfilter artikel, menjalankan indexing otomatis/manual, dan <strong>memeriksa data resmi hasil inspeksi Google Search Console</strong> (coverageState, verdict, indexingState, dsb.) secara langsung per-artikel.
                 </p>
             </div>
-            <div class="col-md-5 col-sm-12 text-right" style="margin-top: 10px;">
-                <button type="button" class="btn btn-success btn-icon btn-icon-standalone" onclick="openBatchModal()" style="font-weight: 700; box-shadow: 0 2px 5px rgba(0,0,0,0.15); margin-bottom: 5px;" <?php echo $total_filtered == 0 ? 'disabled' : ''; ?>>
-                    <i class="fa-bolt"></i>
-                    <span>
-                        <?php if ($has_active_filter): ?>
-                            ⚡ Index Hasil Filter Ini (<span id="btn-pending-counter"><?php echo $total_filtered; ?></span>)
-                        <?php else: ?>
-                            ⚡ Index Semua yang Belum (<span id="btn-pending-counter"><?php echo $pending_count; ?></span>)
-                        <?php endif; ?>
-                    </span>
-                </button>
-                <a href="<?php echo site_url('admin/blog'); ?>" class="btn btn-white btn-icon btn-icon-standalone" style="margin-bottom: 5px;">
-                    <i class="fa-arrow-left"></i>
-                    <span>Kembali ke Blog</span>
-                </a>
+            <div class="col-md-5 col-sm-12 text-right mobile-align-left" style="margin-top: 10px;">
+                <div class="engine-action-btns">
+                    <button type="button" class="btn btn-success btn-icon btn-icon-standalone" onclick="openBatchModal()" style="font-weight: 700; box-shadow: 0 2px 5px rgba(0,0,0,0.15);" <?php echo $total_filtered == 0 ? 'disabled' : ''; ?>>
+                        <i class="fa-bolt"></i>
+                        <span>
+                            <?php if ($has_active_filter): ?>
+                                ⚡ Index Hasil Filter Ini (<span id="btn-pending-counter"><?php echo $total_filtered; ?></span>)
+                            <?php else: ?>
+                                ⚡ Index Semua yang Belum (<span id="btn-pending-counter"><?php echo $pending_count; ?></span>)
+                            <?php endif; ?>
+                        </span>
+                    </button>
+                    <a href="<?php echo site_url('admin/blog'); ?>" class="btn btn-white btn-icon btn-icon-standalone">
+                        <i class="fa-arrow-left"></i>
+                        <span>Kembali ke Blog</span>
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -123,16 +391,16 @@
 <!-- PANEL PENJADWALAN OTOMATIS (AUTO INDEX & INSPEKSI GSC) -->
 <div class="panel panel-default" style="border-left: 4px solid #8e44ad; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 25px;">
     <div class="panel-body" style="padding: 20px;">
-        <div class="row" style="display: flex; align-items: center; flex-wrap: wrap;">
+        <div class="row responsive-panel-row">
             <!-- Kolom Kiri: Header, Saklar ON/OFF, Syarat & Status -->
             <div class="col-md-7 col-sm-12">
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px; flex-wrap: wrap;">
+                <div class="schedule-header-flex" style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px; flex-wrap: wrap;">
                     <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #2c2e2f;">
                         <i class="fa fa-calendar-check-o" style="color: #8e44ad; margin-right: 6px;"></i> Penjadwalan Otomatis (Index & Inspeksi GSC)
                     </h4>
                     
                     <!-- Saklar Toggle ON/OFF -->
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="schedule-toggle-wrapper">
                         <input type="checkbox" id="toggle-schedule-switch" class="iswitch iswitch-primary" <?php echo ($schedule_settings['schedule_indexing_enabled'] === '1') ? 'checked' : ''; ?> onchange="toggleScheduleStatus(this.checked)" style="cursor: pointer;">
                         <span id="schedule-status-badge" class="badge <?php echo ($schedule_settings['schedule_indexing_enabled'] === '1') ? 'badge-success' : 'badge-default'; ?>" style="font-size: 11px; padding: 5px 12px; font-weight: 700; border-radius: 12px; letter-spacing: 0.5px;">
                             <?php echo ($schedule_settings['schedule_indexing_enabled'] === '1') ? '● AKTIF (ON)' : '○ NONAKTIF (OFF)'; ?>
@@ -165,8 +433,8 @@
             </div>
 
             <!-- Kolom Kanan: Pengaturan Parameter & Tombol Cepat -->
-            <div class="col-md-5 col-sm-12 text-right" style="margin-top: 10px;">
-                <div style="background: #fafafa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 14px; display: inline-block; text-align: left; width: 100%; max-width: 440px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+            <div class="col-md-5 col-sm-12 text-right mobile-align-left" style="margin-top: 10px;">
+                <div class="schedule-config-box" style="background: #fafafa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 14px; display: inline-block; text-align: left; width: 100%; max-width: 440px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
                     <div class="row" style="margin: 0 -5px;">
                         <div class="col-xs-6" style="padding: 0 5px;">
                             <label style="font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; margin-bottom: 3px; display: block;">
@@ -191,16 +459,18 @@
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                        <button type="button" class="btn btn-sm btn-white" onclick="saveScheduleSettings()" id="btn-save-schedule" style="flex: 1; font-weight: 600; font-size: 11px;">
-                            <i class="fa fa-save" id="icon-save-schedule"></i> Simpan
-                        </button>
-                        <button type="button" class="btn btn-sm btn-purple" onclick="runScheduleNow()" id="btn-run-schedule-now" style="flex: 1.5; font-weight: 700; font-size: 11px; background-color: #8e44ad; color: #fff; border-color: #7d3c98;">
+                    <div class="schedule-btn-stack">
+                        <button type="button" class="btn btn-sm btn-purple btn-run-now" onclick="runScheduleNow()" id="btn-run-schedule-now" style="font-weight: 700; font-size: 11px; background-color: #8e44ad; color: #fff; border-color: #7d3c98;">
                             <i class="fa fa-play" id="icon-run-schedule-now"></i> Jalankan Sekarang
                         </button>
-                        <button type="button" class="btn btn-sm btn-default" onclick="$('#box-cron-guide').slideToggle(200);" title="Panduan Cron Server" style="font-size: 11px; font-weight: 600;">
-                            <i class="fa fa-cog"></i> Cron Info
-                        </button>
+                        <div class="schedule-sub-btns">
+                            <button type="button" class="btn btn-sm btn-white" onclick="saveScheduleSettings()" id="btn-save-schedule" style="font-weight: 600; font-size: 11px;">
+                                <i class="fa fa-save" id="icon-save-schedule"></i> Simpan
+                            </button>
+                            <button type="button" class="btn btn-sm btn-default" onclick="$('#box-cron-guide').slideToggle(200);" title="Panduan Cron Server" style="font-size: 11px; font-weight: 600;">
+                                <i class="fa fa-cog"></i> Cron Info
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -216,7 +486,7 @@
             </p>
             <div style="margin-bottom: 10px;">
                 <label style="font-weight: 700; color: #f1c40f; font-size: 11px; text-transform: uppercase;">1. URL Web Cron (Rekomendasi untuk CloudPanel Cron / Cron-job.org / Webhook):</label>
-                <div class="input-group">
+                <div class="input-group cron-guide-group">
                     <input type="text" readonly value="<?php echo site_url('cron/indexing?token=' . $schedule_settings['schedule_indexing_secret_token']); ?>" class="form-control input-sm" id="input-cron-url" style="background: #34495e; color: #fff; border: 1px solid #465f77; font-family: monospace; font-size: 11px;">
                     <span class="input-group-btn">
                         <button class="btn btn-sm btn-secondary" type="button" onclick="copyCronText('input-cron-url')" style="background-color: #16a085; color: #fff; font-weight: 600;"><i class="fa fa-copy"></i> Salin URL</button>
@@ -225,7 +495,7 @@
             </div>
             <div>
                 <label style="font-weight: 700; color: #f1c40f; font-size: 11px; text-transform: uppercase;">2. Perintah CLI (Untuk Crontab Linux / CloudPanel PHP Command):</label>
-                <div class="input-group">
+                <div class="input-group cron-guide-group">
                     <input type="text" readonly value="php <?php echo FCPATH; ?>index.php admin/blog_indexing run_scheduled_cron" class="form-control input-sm" id="input-cron-cli" style="background: #34495e; color: #fff; border: 1px solid #465f77; font-family: monospace; font-size: 11px;">
                     <span class="input-group-btn">
                         <button class="btn btn-sm btn-secondary" type="button" onclick="copyCronText('input-cron-cli')" style="background-color: #16a085; color: #fff; font-weight: 600;"><i class="fa fa-copy"></i> Salin Perintah</button>
@@ -244,15 +514,15 @@
     <div class="panel-body" style="padding: 16px 20px; background-color: #fbfbfd; border-radius: 4px;">
         <form method="GET" action="<?php echo site_url('admin/blog_indexing'); ?>" id="filter-indexing-form">
             <!-- Tabs Status Global -->
-            <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                <div class="btn-group">
+            <div class="filter-tabs-wrapper" style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div class="btn-group filter-status-buttons">
                     <a href="<?php echo site_url('admin/blog_indexing?status=all'); ?>" 
                        class="btn btn-xs <?php echo ($filter_status === 'all' && empty($filter_indexnow) && empty($filter_gsc) && empty($filter_google_api) && empty($filter_gsc_verdict)) ? 'btn-primary active' : 'btn-white'; ?>">
                         Semua Artikel (<?php echo $total_posts; ?>)
                     </a>
                     <a href="<?php echo site_url('admin/blog_indexing?status=pending'); ?>" 
                        class="btn btn-xs <?php echo $filter_status === 'pending' ? 'btn-warning active' : 'btn-white'; ?>">
-                        <i class="fa fa-clock-o"></i> Belum Lengkap / Pending (<?php echo $pending_count; ?>)
+                        <i class="fa fa-clock-o"></i> Pending (<?php echo $pending_count; ?>)
                     </a>
                     <a href="<?php echo site_url('admin/blog_indexing?status=indexed'); ?>" 
                        class="btn btn-xs <?php echo $filter_status === 'indexed' ? 'btn-success active' : 'btn-white'; ?>">
@@ -261,12 +531,12 @@
                 </div>
 
                 <?php if ($has_active_filter): ?>
-                    <div>
+                    <div class="filter-active-indicator">
                         <span class="badge badge-info" style="font-size: 11px; padding: 4px 8px; margin-right: 5px;">
-                            <i class="fa fa-filter"></i> Filter Aktif (<?php echo $total_filtered; ?> artikel cocok)
+                            <i class="fa fa-filter"></i> Filter Aktif (<?php echo $total_filtered; ?> cocok)
                         </span>
                         <a href="<?php echo site_url('admin/blog_indexing'); ?>" class="btn btn-xs btn-white" style="font-weight: 600; color: #c0392b;">
-                            <i class="fa fa-times"></i> Reset Semua Filter
+                            <i class="fa fa-times"></i> Reset Filter
                         </a>
                     </div>
                 <?php endif; ?>
@@ -274,10 +544,10 @@
 
             <input type="hidden" name="status" value="<?php echo htmlspecialchars($filter_status); ?>">
 
-            <!-- Baris Dropdown Filter Spesifik Engine & Inspeksi -->
+            <!-- Baris Dropdown Filter Spesifik Engine & Inspeksi (2x2 di Mobile) -->
             <div class="row">
                 <!-- Dropdown 1: IndexNow -->
-                <div class="col-md-3 col-sm-6 col-xs-12" style="margin-bottom: 10px;">
+                <div class="col-md-3 col-sm-6 col-xs-6 filter-dropdown-col" style="margin-bottom: 10px;">
                     <label style="font-size: 11px; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 4px; display: block;">
                         <i class="fa fa-bolt" style="color: #27ae60;"></i> Filter IndexNow:
                     </label>
@@ -298,7 +568,7 @@
                 </div>
 
                 <!-- Dropdown 2: GSC Sitemap -->
-                <div class="col-md-3 col-sm-6 col-xs-12" style="margin-bottom: 10px;">
+                <div class="col-md-3 col-sm-6 col-xs-6 filter-dropdown-col" style="margin-bottom: 10px;">
                     <label style="font-size: 11px; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 4px; display: block;">
                         <i class="fa fa-google" style="color: #2980b9;"></i> Filter GSC Sitemap:
                     </label>
@@ -319,7 +589,7 @@
                 </div>
 
                 <!-- Dropdown 3: Google Indexing API -->
-                <div class="col-md-3 col-sm-6 col-xs-12" style="margin-bottom: 10px;">
+                <div class="col-md-3 col-sm-6 col-xs-6 filter-dropdown-col" style="margin-bottom: 10px;">
                     <label style="font-size: 11px; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 4px; display: block;">
                         <i class="fa fa-search" style="color: #8e44ad;"></i> Filter Google API:
                     </label>
@@ -340,9 +610,9 @@
                 </div>
 
                 <!-- Dropdown 4: Hasil Resmi GSC (URL Inspection) -->
-                <div class="col-md-3 col-sm-6 col-xs-12" style="margin-bottom: 10px;">
+                <div class="col-md-3 col-sm-6 col-xs-6 filter-dropdown-col" style="margin-bottom: 10px;">
                     <label style="font-size: 11px; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 4px; display: block;">
-                        <i class="fa fa-search-plus" style="color: #e67e22;"></i> Filter Hasil Resmi GSC:
+                        <i class="fa fa-search-plus" style="color: #e67e22;"></i> Filter Hasil GSC:
                     </label>
                     <select name="gsc_verdict" class="form-control input-sm" onchange="this.form.submit()" style="border-radius: 4px; border-color: #dce1e4;">
                         <option value="all" <?php echo ($filter_gsc_verdict === null || $filter_gsc_verdict === '' || $filter_gsc_verdict === 'all') ? 'selected' : ''; ?>>
@@ -361,7 +631,7 @@
                             ⏳ Belum Diinspeksi (<?php echo (int)$stats_breakdown->gsc_inspect_uninspected; ?>)
                         </option>
                         <option value="inspected" <?php echo $filter_gsc_verdict === 'inspected' ? 'selected' : ''; ?>>
-                            🔍 Sudah Pernah Diinspeksi (<?php echo (int)$stats_breakdown->gsc_inspect_done; ?>)
+                            🔍 Sudah Pernah (<?php echo (int)$stats_breakdown->gsc_inspect_done; ?>)
                         </option>
                     </select>
                 </div>
@@ -377,7 +647,7 @@
                         </span>
                     </div>
                 </div>
-                <div class="col-md-3 col-sm-4 col-xs-12 text-right" style="margin-bottom: 5px;">
+                <div class="col-md-3 col-sm-4 col-xs-12 text-right mobile-align-left" style="margin-bottom: 5px;">
                     <?php if ($has_active_filter): ?>
                         <a href="<?php echo site_url('admin/blog_indexing'); ?>" class="btn btn-sm btn-white btn-block" style="font-weight: 600; color: #c0392b; border-color: #e5b4b0;">
                             <i class="fa fa-times"></i> Reset Semua Filter
@@ -406,8 +676,8 @@
     </div>
     <div class="panel-body" style="padding: 0;">
 
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover" style="margin-bottom: 0;">
+        <div class="table-responsive table-indexing-wrapper">
+            <table class="table table-bordered table-hover table-indexing" style="margin-bottom: 0;">
                 <thead style="background-color: #f8f9fa;">
                     <tr>
                         <th style="width: 50px; text-align: center;">ID</th>
@@ -450,7 +720,7 @@
                                     <div style="font-size: 11px; color: #888; margin-top: 3px;">
                                         <i class="fa fa-calendar"></i> <?php echo date('d M Y H:i', strtotime($item->datetime)); ?>
                                         <?php if (!empty($item->indexing_log)): ?>
-                                            | <span id="log-blog-<?php echo $item->blog_id; ?>" style="color: #666;"><?php echo htmlspecialchars($item->indexing_log); ?></span>
+                                             | <span id="log-blog-<?php echo $item->blog_id; ?>" style="color: #666;"><?php echo htmlspecialchars($item->indexing_log); ?></span>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -510,7 +780,7 @@
                                     <!-- Button Indexing -->
                                     <button type="button" 
                                             id="btn-index-<?php echo $item->blog_id; ?>" 
-                                            class="btn btn-xs <?php echo ($item->gsc_status == 1 && $item->indexnow_status == 1 && $item->google_indexing_status == 1) ? 'btn-white' : 'btn-primary'; ?>" 
+                                            class="btn btn-xs <?php echo ($item->gsc_status == 1 && $item->indexnow_status == 1 && $item->google_indexing_status == 1) ? 'btn-white' : 'btn-primary'; ?> btn-action-index" 
                                             onclick="indexSingle(<?php echo $item->blog_id; ?>)" 
                                             style="font-weight: 600; margin-right: 3px;"
                                             title="Kirim URL ke search engine">
@@ -521,7 +791,7 @@
                                     <!-- Button Official GSC URL Inspection -->
                                     <button type="button" 
                                             id="btn-inspect-<?php echo $item->blog_id; ?>" 
-                                            class="btn btn-xs btn-info" 
+                                            class="btn btn-xs btn-info btn-action-inspect" 
                                             onclick="inspectSingle(<?php echo $item->blog_id; ?>)" 
                                             style="font-weight: 600; background-color: #e67e22; border-color: #e67e22; color: #fff;"
                                             title="Inspeksi status resmi URL di Google Search Console">
@@ -626,7 +896,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <a href="#" id="modal-inspect-gsc-btn" target="_blank" class="btn btn-primary btn-icon btn-icon-standalone pull-left" style="font-weight: 600;">
+                <a href="#" id="modal-inspect-gsc-btn" target="_blank" class="btn btn-primary btn-icon btn-icon-standalone" style="font-weight: 600;">
                     <i class="fa fa-external-link"></i>
                     <span>Buka di Google Search Console Web</span>
                 </a>
