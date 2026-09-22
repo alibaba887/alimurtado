@@ -128,7 +128,7 @@
             <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                 <div class="btn-group">
                     <a href="<?php echo site_url('admin/blog_indexing?status=all'); ?>" 
-                       class="btn btn-xs <?php echo ($filter_status === 'all' && empty($filter_indexnow) && empty($filter_gsc) && empty($filter_google_api)) ? 'btn-primary active' : 'btn-white'; ?>">
+                       class="btn btn-xs <?php echo ($filter_status === 'all' && empty($filter_indexnow) && empty($filter_gsc) && empty($filter_google_api) && empty($filter_gsc_verdict)) ? 'btn-primary active' : 'btn-white'; ?>">
                         Semua Artikel (<?php echo $total_posts; ?>)
                     </a>
                     <a href="<?php echo site_url('admin/blog_indexing?status=pending'); ?>" 
@@ -155,7 +155,7 @@
 
             <input type="hidden" name="status" value="<?php echo htmlspecialchars($filter_status); ?>">
 
-            <!-- Baris Dropdown Filter Spesifik Engine -->
+            <!-- Baris Dropdown Filter Spesifik Engine & Inspeksi -->
             <div class="row">
                 <!-- Dropdown 1: IndexNow -->
                 <div class="col-md-3 col-sm-6 col-xs-12" style="margin-bottom: 10px;">
@@ -220,17 +220,50 @@
                     </select>
                 </div>
 
-                <!-- Search box -->
+                <!-- Dropdown 4: Hasil Resmi GSC (URL Inspection) -->
                 <div class="col-md-3 col-sm-6 col-xs-12" style="margin-bottom: 10px;">
                     <label style="font-size: 11px; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 4px; display: block;">
-                        <i class="fa fa-font"></i> Cari Judul Artikel:
+                        <i class="fa fa-search-plus" style="color: #e67e22;"></i> Filter Hasil Resmi GSC:
                     </label>
+                    <select name="gsc_verdict" class="form-control input-sm" onchange="this.form.submit()" style="border-radius: 4px; border-color: #dce1e4;">
+                        <option value="all" <?php echo ($filter_gsc_verdict === null || $filter_gsc_verdict === '' || $filter_gsc_verdict === 'all') ? 'selected' : ''; ?>>
+                            Semua Hasil GSC (<?php echo $total_posts; ?>)
+                        </option>
+                        <option value="PASS" <?php echo $filter_gsc_verdict === 'PASS' ? 'selected' : ''; ?>>
+                            ✓ PASS / Terindeks (<?php echo (int)$stats_breakdown->gsc_inspect_pass; ?>)
+                        </option>
+                        <option value="NEUTRAL" <?php echo $filter_gsc_verdict === 'NEUTRAL' ? 'selected' : ''; ?>>
+                            ℹ NEUTRAL / Perhatian (<?php echo (int)$stats_breakdown->gsc_inspect_neutral; ?>)
+                        </option>
+                        <option value="FAIL" <?php echo $filter_gsc_verdict === 'FAIL' ? 'selected' : ''; ?>>
+                            ✗ FAIL / Masalah (<?php echo (int)$stats_breakdown->gsc_inspect_fail; ?>)
+                        </option>
+                        <option value="uninspected" <?php echo $filter_gsc_verdict === 'uninspected' ? 'selected' : ''; ?>>
+                            ⏳ Belum Diinspeksi (<?php echo (int)$stats_breakdown->gsc_inspect_uninspected; ?>)
+                        </option>
+                        <option value="inspected" <?php echo $filter_gsc_verdict === 'inspected' ? 'selected' : ''; ?>>
+                            🔍 Sudah Pernah Diinspeksi (<?php echo (int)$stats_breakdown->gsc_inspect_done; ?>)
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Baris Pencarian Judul & Reset Filter -->
+            <div class="row" style="margin-top: 5px; padding-top: 10px; border-top: 1px dashed #e5e5e5;">
+                <div class="col-md-9 col-sm-8 col-xs-12" style="margin-bottom: 5px;">
                     <div class="input-group">
-                        <input type="text" name="q" class="form-control input-sm" placeholder="Ketik kata kunci..." value="<?php echo htmlspecialchars($search_query); ?>" style="border-radius: 4px 0 0 4px; border-color: #dce1e4;">
+                        <input type="text" name="q" class="form-control input-sm" placeholder="Ketik kata kunci pencarian judul artikel..." value="<?php echo htmlspecialchars($search_query); ?>" style="border-radius: 4px 0 0 4px; border-color: #dce1e4;">
                         <span class="input-group-btn">
-                            <button type="submit" class="btn btn-sm btn-primary" style="border-radius: 0 4px 4px 0;"><i class="fa-search"></i> Cari</button>
+                            <button type="submit" class="btn btn-sm btn-primary" style="border-radius: 0 4px 4px 0; font-weight: 600;"><i class="fa-search"></i> Cari Artikel</button>
                         </span>
                     </div>
+                </div>
+                <div class="col-md-3 col-sm-4 col-xs-12 text-right" style="margin-bottom: 5px;">
+                    <?php if ($has_active_filter): ?>
+                        <a href="<?php echo site_url('admin/blog_indexing'); ?>" class="btn btn-sm btn-white btn-block" style="font-weight: 600; color: #c0392b; border-color: #e5b4b0;">
+                            <i class="fa fa-times"></i> Reset Semua Filter
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </form>
@@ -554,6 +587,7 @@
         indexnow: '<?php echo addslashes($filter_indexnow !== null ? $filter_indexnow : ''); ?>',
         gsc: '<?php echo addslashes($filter_gsc !== null ? $filter_gsc : ''); ?>',
         google_api: '<?php echo addslashes($filter_google_api !== null ? $filter_google_api : ''); ?>',
+        gsc_verdict: '<?php echo addslashes($filter_gsc_verdict !== null ? $filter_gsc_verdict : ''); ?>',
         q: '<?php echo addslashes($search_query); ?>'
     };
 

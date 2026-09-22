@@ -28,11 +28,12 @@ class Blog_indexing extends CIF_Controller {
     }
 
     public function index() {
-        $filter_status     = $this->input->get('status') ?: 'all';
-        $filter_indexnow   = $this->input->get('indexnow');
-        $filter_gsc        = $this->input->get('gsc');
-        $filter_google_api = $this->input->get('google_api');
-        $search_query      = trim($this->input->get('q') ?: '');
+        $filter_status      = $this->input->get('status') ?: 'all';
+        $filter_indexnow    = $this->input->get('indexnow');
+        $filter_gsc         = $this->input->get('gsc');
+        $filter_google_api  = $this->input->get('google_api');
+        $filter_gsc_verdict = $this->input->get('gsc_verdict');
+        $search_query       = trim($this->input->get('q') ?: '');
 
         // 1. Hitung Statistik Ringkasan Global
         $data['total_posts'] = $this->db->where('display', '1')->count_all_results('blog');
@@ -62,7 +63,12 @@ class Blog_indexing extends CIF_Controller {
               SUM(IF(gsc_status = 2, 1, 0)) as gsc_failed,
               SUM(IF(google_indexing_status = 1, 1, 0)) as gapi_success,
               SUM(IF(google_indexing_status = 0, 1, 0)) as gapi_pending,
-              SUM(IF(google_indexing_status = 2, 1, 0)) as gapi_failed
+              SUM(IF(google_indexing_status = 2, 1, 0)) as gapi_failed,
+              SUM(IF(gsc_verdict = 'PASS', 1, 0)) as gsc_inspect_pass,
+              SUM(IF(gsc_verdict = 'NEUTRAL', 1, 0)) as gsc_inspect_neutral,
+              SUM(IF(gsc_verdict = 'FAIL', 1, 0)) as gsc_inspect_fail,
+              SUM(IF(gsc_verdict IS NOT NULL AND gsc_verdict != '', 1, 0)) as gsc_inspect_done,
+              SUM(IF(gsc_verdict IS NULL OR gsc_verdict = '', 1, 0)) as gsc_inspect_uninspected
             FROM blog WHERE display = '1'
         ")->row();
         $data['stats_breakdown'] = $stats_row;
@@ -71,7 +77,7 @@ class Blog_indexing extends CIF_Controller {
         $data['last_indexed_at'] = $last_run_row ? $last_run_row->last_indexed_at : '-';
 
         // 2. Query Utama dengan Filter
-        $this->_apply_filters($this->db, $filter_status, $filter_indexnow, $filter_gsc, $filter_google_api, $search_query);
+        $this->_apply_filters($this->db, $filter_status, $filter_indexnow, $filter_gsc, $filter_google_api, $filter_gsc_verdict, $search_query);
 
         // Hitung total filtered rows untuk pagination
         $total_filtered = $this->db->count_all_results('blog', FALSE);
@@ -91,17 +97,19 @@ class Blog_indexing extends CIF_Controller {
         $this->db->limit($per_page, $offset);
         $data['items'] = $this->db->get()->result();
 
-        $data['filter_status']     = $filter_status;
-        $data['filter_indexnow']   = $filter_indexnow;
-        $data['filter_gsc']        = $filter_gsc;
-        $data['filter_google_api'] = $filter_google_api;
-        $data['search_query']      = $search_query;
-        $data['total_filtered']    = $total_filtered;
+        $data['filter_status']      = $filter_status;
+        $data['filter_indexnow']    = $filter_indexnow;
+        $data['filter_gsc']         = $filter_gsc;
+        $data['filter_google_api']  = $filter_google_api;
+        $data['filter_gsc_verdict'] = $filter_gsc_verdict;
+        $data['search_query']       = $search_query;
+        $data['total_filtered']     = $total_filtered;
 
         $data['has_active_filter'] = ($filter_status !== 'all' && !empty($filter_status)) ||
                                      ($filter_indexnow !== null && $filter_indexnow !== '' && $filter_indexnow !== 'all') ||
                                      ($filter_gsc !== null && $filter_gsc !== '' && $filter_gsc !== 'all') ||
                                      ($filter_google_api !== null && $filter_google_api !== '' && $filter_google_api !== 'all') ||
+                                     ($filter_gsc_verdict !== null && $filter_gsc_verdict !== '' && $filter_gsc_verdict !== 'all') ||
                                      (!empty($search_query));
 
         $this->load->view($this->module . '/index', $data);
@@ -181,19 +189,21 @@ class Blog_indexing extends CIF_Controller {
      * AJAX: Dapatkan jumlah sisa artikel yang perlu di-index (mendukung filter spesifik)
      */
     public function ajax_get_pending_count() {
-        $status     = $this->input->post('status') ?: 'all';
-        $indexnow   = $this->input->post('indexnow');
-        $gsc        = $this->input->post('gsc');
-        $google_api = $this->input->post('google_api');
-        $search     = trim($this->input->post('q') ?: '');
+        $status      = $this->input->post('status') ?: 'all';
+        $indexnow    = $this->input->post('indexnow');
+        $gsc         = $this->input->post('gsc');
+        $google_api  = $this->input->post('google_api');
+        $gsc_verdict = $this->input->post('gsc_verdict');
+        $search      = trim($this->input->post('q') ?: '');
 
         $has_custom = ($indexnow !== null && $indexnow !== '' && $indexnow !== 'all') ||
                       ($gsc !== null && $gsc !== '' && $gsc !== 'all') ||
                       ($google_api !== null && $google_api !== '' && $google_api !== 'all') ||
+                      ($gsc_verdict !== null && $gsc_verdict !== '' && $gsc_verdict !== 'all') ||
                       (!empty($search));
 
         if ($has_custom) {
-            $this->_apply_filters($this->db, $status, $indexnow, $gsc, $google_api, $search);
+            $this->_apply_filters($this->db, $status, $indexnow, $gsc, $google_api, $gsc_verdict, $search);
             $pending_count = $this->db->count_all_results('blog');
         } else {
             $pending_count = $this->db->where('display', '1')
@@ -215,23 +225,25 @@ class Blog_indexing extends CIF_Controller {
      * AJAX: Batch indexing otomatis (proses N artikel per panggilan, mendukung filter)
      */
     public function ajax_index_batch() {
-        $limit      = (int)($this->input->post('limit') ?: 10);
-        $status     = $this->input->post('status') ?: 'all';
-        $indexnow   = $this->input->post('indexnow');
-        $gsc        = $this->input->post('gsc');
-        $google_api = $this->input->post('google_api');
-        $search     = trim($this->input->post('q') ?: '');
+        $limit       = (int)($this->input->post('limit') ?: 10);
+        $status      = $this->input->post('status') ?: 'all';
+        $indexnow    = $this->input->post('indexnow');
+        $gsc         = $this->input->post('gsc');
+        $google_api  = $this->input->post('google_api');
+        $gsc_verdict = $this->input->post('gsc_verdict');
+        $search      = trim($this->input->post('q') ?: '');
 
         if ($limit > 50) $limit = 50;
 
         $has_custom = ($indexnow !== null && $indexnow !== '' && $indexnow !== 'all') ||
                       ($gsc !== null && $gsc !== '' && $gsc !== 'all') ||
                       ($google_api !== null && $google_api !== '' && $google_api !== 'all') ||
+                      ($gsc_verdict !== null && $gsc_verdict !== '' && $gsc_verdict !== 'all') ||
                       (!empty($search));
 
         // Ambil artikel target
         if ($has_custom) {
-            $this->_apply_filters($this->db, $status, $indexnow, $gsc, $google_api, $search);
+            $this->_apply_filters($this->db, $status, $indexnow, $gsc, $google_api, $gsc_verdict, $search);
         } else {
             $this->db->where('display', '1')
                      ->group_start()
@@ -268,7 +280,7 @@ class Blog_indexing extends CIF_Controller {
 
         // Hitung sisa
         if ($has_custom) {
-            $this->_apply_filters($this->db, $status, $indexnow, $gsc, $google_api, $search);
+            $this->_apply_filters($this->db, $status, $indexnow, $gsc, $google_api, $gsc_verdict, $search);
             $remaining_count = $this->db->count_all_results('blog');
         } else {
             $remaining_count = $this->db->where('display', '1')
@@ -327,7 +339,7 @@ class Blog_indexing extends CIF_Controller {
     /**
      * Helper untuk menerapkan filter query
      */
-    private function _apply_filters($db, $status, $indexnow, $gsc, $google_api, $search = '') {
+    private function _apply_filters($db, $status, $indexnow, $gsc, $google_api, $gsc_verdict = null, $search = '') {
         $db->where('display', '1');
 
         if ($status === 'pending') {
@@ -352,6 +364,19 @@ class Blog_indexing extends CIF_Controller {
         }
         if ($google_api !== null && $google_api !== '' && $google_api !== 'all') {
             $db->where('google_indexing_status', (int)$google_api);
+        }
+        if ($gsc_verdict !== null && $gsc_verdict !== '' && $gsc_verdict !== 'all') {
+            if ($gsc_verdict === 'uninspected') {
+                $db->group_start()
+                       ->where('gsc_verdict IS NULL', null, false)
+                       ->or_where('gsc_verdict', '')
+                   ->group_end();
+            } elseif ($gsc_verdict === 'inspected') {
+                $db->where('gsc_verdict IS NOT NULL', null, false)
+                   ->where('gsc_verdict !=', '');
+            } else {
+                $db->where('gsc_verdict', $gsc_verdict);
+            }
         }
 
         if (!empty($search)) {
