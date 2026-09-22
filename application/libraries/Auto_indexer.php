@@ -25,6 +25,10 @@ class Auto_indexer {
     private $oauth_config_path;
     private $sa_config_path;
 
+    // In-memory token cache for batch efficiency
+    private $cached_oauth_token = null;
+    private $cached_sa_token = null;
+
     public function __construct() {
         $this->CI =& get_instance();
         $this->oauth_config_path = APPPATH . 'config/google_oauth.json';
@@ -36,12 +40,19 @@ class Auto_indexer {
      *
      * @param string $url URL artikel yang dipublish
      * @param int|null $queue_id ID konten_publish jika ada
+     * @param int|null $blog_id ID blog jika ada
      * @return array Hasil pengiriman ke masing-masing engine
      */
-    public function index_url($url, $queue_id = null) {
+    public function index_url($url, $queue_id = null, $blog_id = null) {
+        // Resolve blog_id dari URL jika belum ada
+        if (!$blog_id && preg_match('#/post/(\d+)(?:-|$)#', $url, $matches)) {
+            $blog_id = (int)$matches[1];
+        }
+
         $results = [
             'url'              => $url,
             'queue_id'         => $queue_id,
+            'blog_id'          => $blog_id,
             'indexnow'         => ['success' => false, 'code' => 0, 'message' => ''],
             'google_sitemap'   => ['success' => false, 'code' => 0, 'message' => ''],
             'google_indexing'  => ['success' => false, 'code' => 0, 'message' => ''],
@@ -69,16 +80,32 @@ class Auto_indexer {
             $results['google_indexing']['message'] = $e->getMessage();
         }
 
-        // 4. Update status di tabel konten_publish jika queue_id diberikan
+        // 4. Update status di tabel konten_publish jika queue_id atau url diberikan
         if ($queue_id) {
-            $gsc_status = '1'; // Dianggap submitted jika salah satu Google sitemap ping / IndexNow berhasil
             $this->CI->db->where('id', $queue_id)->update('konten_publish', [
-                'gsc' => $gsc_status
+                'gsc' => '1'
             ]);
         } elseif ($url) {
-            // Update berdasarkan link jika ada di konten_publish
             $this->CI->db->where('link', $url)->update('konten_publish', [
                 'gsc' => '1'
+            ]);
+        }
+
+        // 5. Update status di tabel blog jika blog_id diketahui
+        if ($blog_id) {
+            $in_code  = isset($results['indexnow']['code']) ? (int)$results['indexnow']['code'] : 0;
+            $gsc_code = isset($results['google_sitemap']['code']) ? (int)$results['google_sitemap']['code'] : 0;
+            $api_code = isset($results['google_indexing']['code']) ? (int)$results['google_indexing']['code'] : 0;
+
+            $now_dt = date('Y-m-d H:i:s');
+            $summary_log = "IndexNow: {$in_code} | GSC Sitemap: {$gsc_code} | Google API: {$api_code}";
+
+            $this->CI->db->where('blog_id', $blog_id)->update('blog', [
+                'indexnow_status'        => $results['indexnow']['success'] ? 1 : ($in_code > 0 ? 2 : 0),
+                'gsc_status'             => $results['google_sitemap']['success'] ? 1 : ($gsc_code > 0 ? 2 : 0),
+                'google_indexing_status' => $results['google_indexing']['success'] ? 1 : ($api_code > 0 ? 2 : 0),
+                'last_indexed_at'        => $now_dt,
+                'indexing_log'           => $summary_log
             ]);
         }
 
@@ -86,6 +113,84 @@ class Auto_indexer {
         log_message('info', 'Auto_indexer: ' . json_encode($results));
 
         return $results;
+    }
+
+    /**
+     * Submit kumpulan URL sekaligus (batch)
+     * IndexNow dipanggil sekali untuk seluruh URL, GSC Sitemap di-refresh sekali,
+     * lalu Google Indexing API diproses per-URL.
+     *
+     * @param array $items Array berisi list ['blog_id' => ..., 'url' => ...]
+     * @return array
+     */
+    public function index_batch($items = []) {
+        if (empty($items)) {
+            return ['success' => false, 'message' => 'Daftar artikel kosong'];
+        }
+
+        $url_list = [];
+        foreach ($items as $item) {
+            if (!empty($item['url'])) {
+                $url_list[] = $item['url'];
+            }
+        }
+
+        // 1. Bulk submit ke IndexNow (hingga 10.000 URL per call)
+        $indexnow_res = $this->submit_indexnow($url_list);
+
+        // 2. Ping refresh GSC Sitemap 1x
+        $gsc_res = $this->ping_google_sitemap();
+
+        $processed = 0;
+        $details   = [];
+
+        $now_dt = date('Y-m-d H:i:s');
+        $in_code  = isset($indexnow_res['code']) ? (int)$indexnow_res['code'] : 0;
+        $gsc_code = isset($gsc_res['code']) ? (int)$gsc_res['code'] : 0;
+
+        foreach ($items as $item) {
+            $url     = $item['url'];
+            $blog_id = isset($item['blog_id']) ? (int)$item['blog_id'] : 0;
+
+            // Google Indexing API per URL
+            $api_res = ['success' => false, 'code' => 0];
+            try {
+                $api_res = $this->submit_google_indexing($url, 'URL_UPDATED');
+            } catch (Exception $e) {
+                $api_res['message'] = $e->getMessage();
+            }
+
+            $api_code = isset($api_res['code']) ? (int)$api_res['code'] : 0;
+            $summary_log = "IndexNow: {$in_code} | GSC Sitemap: {$gsc_code} | Google API: {$api_code}";
+
+            if ($blog_id) {
+                $this->CI->db->where('blog_id', $blog_id)->update('blog', [
+                    'indexnow_status'        => $indexnow_res['success'] ? 1 : ($in_code > 0 ? 2 : 0),
+                    'gsc_status'             => $gsc_res['success'] ? 1 : ($gsc_code > 0 ? 2 : 0),
+                    'google_indexing_status' => $api_res['success'] ? 1 : ($api_code > 0 ? 2 : 0),
+                    'last_indexed_at'        => $now_dt,
+                    'indexing_log'           => $summary_log
+                ]);
+            }
+
+            // Sync ke konten_publish
+            $this->CI->db->where('link', $url)->update('konten_publish', ['gsc' => '1']);
+
+            $processed++;
+            $details[] = [
+                'blog_id' => $blog_id,
+                'url'     => $url,
+                'api_code'=> $api_code
+            ];
+        }
+
+        return [
+            'success'   => true,
+            'processed' => $processed,
+            'indexnow'  => $indexnow_res,
+            'gsc_sitemap' => $gsc_res,
+            'details'   => $details
+        ];
     }
 
     /**
@@ -146,26 +251,30 @@ class Auto_indexer {
             return ['success' => false, 'code' => 0, 'message' => 'OAuth config tidak lengkap'];
         }
 
-        // 1. Dapatkan access token dari refresh token
-        $token_ch = curl_init('https://oauth2.googleapis.com/token');
-        curl_setopt($token_ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($token_ch, CURLOPT_POST, true);
-        curl_setopt($token_ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($token_ch, CURLOPT_POSTFIELDS, http_build_query([
-            'client_id'     => $oauth['client_id'],
-            'client_secret' => $oauth['client_secret'],
-            'refresh_token' => $oauth['refresh_token'],
-            'grant_type'    => 'refresh_token'
-        ]));
-        $token_raw = curl_exec($token_ch);
-        curl_close($token_ch);
+        // 1. Dapatkan access token dari refresh token (atau cache)
+        if (!$this->cached_oauth_token) {
+            $token_ch = curl_init('https://oauth2.googleapis.com/token');
+            curl_setopt($token_ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($token_ch, CURLOPT_POST, true);
+            curl_setopt($token_ch, CURLOPT_TIMEOUT, 6);
+            curl_setopt($token_ch, CURLOPT_POSTFIELDS, http_build_query([
+                'client_id'     => $oauth['client_id'],
+                'client_secret' => $oauth['client_secret'],
+                'refresh_token' => $oauth['refresh_token'],
+                'grant_type'    => 'refresh_token'
+            ]));
+            $token_raw = curl_exec($token_ch);
+            curl_close($token_ch);
 
-        $token_data = json_decode($token_raw, true);
-        if (empty($token_data['access_token'])) {
-            return ['success' => false, 'code' => 0, 'message' => 'Gagal refresh Google OAuth token: ' . $token_raw];
+            $token_data = json_decode($token_raw, true);
+            if (empty($token_data['access_token'])) {
+                return ['success' => false, 'code' => 0, 'message' => 'Gagal refresh Google OAuth token: ' . $token_raw];
+            }
+
+            $this->cached_oauth_token = $token_data['access_token'];
         }
 
-        $access_token = $token_data['access_token'];
+        $access_token = $this->cached_oauth_token;
 
         // 2. Submit sitemap via Google Search Console API (PUT method)
         $site_url = urlencode('sc-domain:' . $this->indexnow_host);
@@ -212,50 +321,54 @@ class Auto_indexer {
             return ['success' => false, 'code' => 0, 'message' => 'Service account config tidak lengkap'];
         }
 
-        // 1. Buat JWT signed RS256
-        $now = time();
-        $header = [
-            'alg' => 'RS256',
-            'typ' => 'JWT'
-        ];
-        $claim = [
-            'iss'   => $sa['client_email'],
-            'scope' => 'https://www.googleapis.com/auth/indexing',
-            'aud'   => 'https://oauth2.googleapis.com/token',
-            'exp'   => $now + 3600,
-            'iat'   => $now
-        ];
+        // 1 & 2. Dapatkan access token dari Service Account JWT (atau cache)
+        if (!$this->cached_sa_token) {
+            $now = time();
+            $header = [
+                'alg' => 'RS256',
+                'typ' => 'JWT'
+            ];
+            $claim = [
+                'iss'   => $sa['client_email'],
+                'scope' => 'https://www.googleapis.com/auth/indexing',
+                'aud'   => 'https://oauth2.googleapis.com/token',
+                'exp'   => $now + 3600,
+                'iat'   => $now
+            ];
 
-        $encoded_header = $this->_base64_url_encode(json_encode($header));
-        $encoded_claim  = $this->_base64_url_encode(json_encode($claim));
-        $data_to_sign   = $encoded_header . '.' . $encoded_claim;
+            $encoded_header = $this->_base64_url_encode(json_encode($header));
+            $encoded_claim  = $this->_base64_url_encode(json_encode($claim));
+            $data_to_sign   = $encoded_header . '.' . $encoded_claim;
 
-        $signature = '';
-        $sign_success = openssl_sign($data_to_sign, $signature, $sa['private_key'], OPENSSL_ALGO_SHA256);
-        if (!$sign_success) {
-            return ['success' => false, 'code' => 0, 'message' => 'Gagal membuat signature JWT dengan private key'];
+            $signature = '';
+            $sign_success = openssl_sign($data_to_sign, $signature, $sa['private_key'], OPENSSL_ALGO_SHA256);
+            if (!$sign_success) {
+                return ['success' => false, 'code' => 0, 'message' => 'Gagal membuat signature JWT dengan private key'];
+            }
+
+            $jwt = $data_to_sign . '.' . $this->_base64_url_encode($signature);
+
+            // Tukar JWT dengan Google Access Token
+            $ch = curl_init('https://oauth2.googleapis.com/token');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion'  => $jwt
+            ]));
+            $token_raw = curl_exec($ch);
+            curl_close($ch);
+
+            $token_data = json_decode($token_raw, true);
+            if (empty($token_data['access_token'])) {
+                return ['success' => false, 'code' => 0, 'message' => 'Gagal autentikasi Service Account: ' . $token_raw];
+            }
+
+            $this->cached_sa_token = $token_data['access_token'];
         }
 
-        $jwt = $data_to_sign . '.' . $this->_base64_url_encode($signature);
-
-        // 2. Tukar JWT dengan Google Access Token
-        $ch = curl_init('https://oauth2.googleapis.com/token');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-            'assertion'  => $jwt
-        ]));
-        $token_raw = curl_exec($ch);
-        curl_close($ch);
-
-        $token_data = json_decode($token_raw, true);
-        if (empty($token_data['access_token'])) {
-            return ['success' => false, 'code' => 0, 'message' => 'Gagal autentikasi Service Account: ' . $token_raw];
-        }
-
-        $access_token = $token_data['access_token'];
+        $access_token = $this->cached_sa_token;
 
         // 3. Kirim publish notification ke Google Indexing API
         $indexing_ch = curl_init('https://indexing.googleapis.com/v3/urlNotifications:publish');

@@ -65,6 +65,9 @@
     <div class="panel-heading">
         <h3 class="panel-title"> <?php echo lang('global_blog') ?></h3>
         <div class="panel-options">
+            <a href="<?php echo site_url('admin/blog_indexing'); ?>" class="btn btn-info btn-sm" style="background-color: #00b19d; border-color: #00b19d; color: #fff; margin-right: 5px;">
+                <i class="fa fa-cloud-upload"></i> Status Indexing
+            </a>
             <button type="button" class="btn btn-purple btn-sm" data-toggle="modal" data-target="#modal-ai-generator" style="background-color: #7c38bc; border-color: #7c38bc; color: #fff; font-weight: bold; margin-right: 5px;">
                 <i class="fa fa-magic"></i> ✨ Buat Artikel dengan AI
             </button>
@@ -96,6 +99,15 @@
                             </a>
                             <?php if (isset($item->display) && $item->display === '0'): ?>
                                 <span class="badge badge-warning" style="font-size: 10px; margin-left: 5px; padding: 2px 6px;">Draft</span>
+                            <?php endif; ?>
+                            <?php if (isset($item->gsc_status) && $item->gsc_status == 1): ?>
+                                <a href="<?php echo site_url('admin/blog_indexing'); ?>" class="badge badge-success" style="font-size: 10px; margin-left: 5px; padding: 2px 6px; background-color: #27ae60;" title="Sudah di-submit ke Search Engine">
+                                    <i class="fa fa-check"></i> Indexed
+                                </a>
+                            <?php else: ?>
+                                <a href="<?php echo site_url('admin/blog_indexing?status=pending'); ?>" class="badge badge-warning" style="font-size: 10px; margin-left: 5px; padding: 2px 6px; background-color: #f39c12;" title="Belum di-submit ke Search Engine (Klik untuk index)">
+                                    <i class="fa fa-clock-o"></i> Unindexed
+                                </a>
                             <?php endif; ?>
                         </td>
                         <td><?php echo $item->visits ?></td>

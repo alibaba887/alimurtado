@@ -170,6 +170,12 @@
                                         <span class="title"><?php echo lang('global_blog') ?></span>
                                     </a>
                                 </li>
+                                <li>
+                                    <a href="<?php echo site_url('admin/blog_indexing') ?>">
+                                        <i class="fa fa-cloud-upload"></i>
+                                        <span class="title">Status Indexing</span>
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                         <li>
