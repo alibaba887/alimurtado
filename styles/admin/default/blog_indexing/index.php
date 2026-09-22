@@ -54,7 +54,7 @@
             </div>
             <div class="xe-label">
                 <strong class="num" id="stat-pending-count"><?php echo number_format($pending_count); ?></strong>
-                <span>Belum Di-index (Pending)</span>
+                <span>Belum Lengkap / Pending</span>
             </div>
         </div>
     </div>
@@ -87,18 +87,24 @@
                     <span class="badge badge-success" style="font-size: 12px; padding: 5px 12px; border-radius: 12px; background-color: #2980b9;">
                         <i class="fa fa-google"></i> Google Search Console Sitemap Refresh
                     </span>
-                    <span class="badge badge-info" style="font-size: 12px; padding: 5px 12px; border-radius: 12px; background-color: #8e44ad;">
+                    <span class="badge badge-success" style="font-size: 12px; padding: 5px 12px; border-radius: 12px; background-color: #8e44ad;">
                         <i class="fa fa-bolt"></i> Google Indexing API (Service Account)
                     </span>
                 </div>
                 <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.6;">
-                    Setiap artikel yang diterbitkan akan otomatis di-index. Anda juga dapat menjalankan indexing manual per-artikel atau batch otomatis untuk seluruh artikel yang statusnya pending.
+                    Setiap artikel baru otomatis terkirim ke 3 search engine. Anda juga dapat memfilter artikel berdasarkan status engine tertentu di bawah ini dan menjalankannya secara manual per-artikel atau batch otomatis.
                 </p>
             </div>
             <div class="col-md-5 col-sm-12 text-right" style="margin-top: 10px;">
-                <button type="button" class="btn btn-success btn-icon btn-icon-standalone" onclick="openBatchModal()" style="font-weight: 700; box-shadow: 0 2px 5px rgba(0,0,0,0.15); margin-bottom: 5px;" <?php echo $pending_count == 0 ? 'disabled' : ''; ?>>
+                <button type="button" class="btn btn-success btn-icon btn-icon-standalone" onclick="openBatchModal()" style="font-weight: 700; box-shadow: 0 2px 5px rgba(0,0,0,0.15); margin-bottom: 5px;" <?php echo $total_filtered == 0 ? 'disabled' : ''; ?>>
                     <i class="fa-bolt"></i>
-                    <span>⚡ Index Semua yang Belum (<span id="btn-pending-counter"><?php echo $pending_count; ?></span>)</span>
+                    <span>
+                        <?php if ($has_active_filter): ?>
+                            ⚡ Index Hasil Filter Ini (<span id="btn-pending-counter"><?php echo $total_filtered; ?></span>)
+                        <?php else: ?>
+                            ⚡ Index Semua yang Belum (<span id="btn-pending-counter"><?php echo $pending_count; ?></span>)
+                        <?php endif; ?>
+                    </span>
                 </button>
                 <a href="<?php echo site_url('admin/blog'); ?>" class="btn btn-white btn-icon btn-icon-standalone" style="margin-bottom: 5px;">
                     <i class="fa-arrow-left"></i>
@@ -111,42 +117,136 @@
     </div>
 </div>
 
-<!-- MAIN TABLE -->
-<div class="panel panel-default">
-    <div class="panel-heading" style="padding: 15px 20px;">
-        <div class="row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-            <div class="col-md-6 col-sm-12" style="margin-bottom: 10px;">
-                <!-- Filter Tabs -->
+<!-- FILTER PANEL DENGAN MULTI DROPDOWN -->
+<div class="panel panel-default" style="box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 20px;">
+    <div class="panel-body" style="padding: 16px 20px; background-color: #fbfbfd; border-radius: 4px;">
+        <form method="GET" action="<?php echo site_url('admin/blog_indexing'); ?>" id="filter-indexing-form">
+            <!-- Tabs Status Global -->
+            <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                 <div class="btn-group">
-                    <a href="<?php echo site_url('admin/blog_indexing?status=all' . ($search_query ? '&q=' . urlencode($search_query) : '')); ?>" 
-                       class="btn btn-sm <?php echo $filter_status === 'all' ? 'btn-primary active' : 'btn-white'; ?>">
-                        Semua (<?php echo $total_posts; ?>)
+                    <a href="<?php echo site_url('admin/blog_indexing?status=all'); ?>" 
+                       class="btn btn-xs <?php echo ($filter_status === 'all' && empty($filter_indexnow) && empty($filter_gsc) && empty($filter_google_api)) ? 'btn-primary active' : 'btn-white'; ?>">
+                        Semua Artikel (<?php echo $total_posts; ?>)
                     </a>
-                    <a href="<?php echo site_url('admin/blog_indexing?status=pending' . ($search_query ? '&q=' . urlencode($search_query) : '')); ?>" 
-                       class="btn btn-sm <?php echo $filter_status === 'pending' ? 'btn-warning active' : 'btn-white'; ?>">
-                        <i class="fa fa-clock-o"></i> Belum Di-index (<?php echo $pending_count; ?>)
+                    <a href="<?php echo site_url('admin/blog_indexing?status=pending'); ?>" 
+                       class="btn btn-xs <?php echo $filter_status === 'pending' ? 'btn-warning active' : 'btn-white'; ?>">
+                        <i class="fa fa-clock-o"></i> Belum Lengkap / Pending (<?php echo $pending_count; ?>)
                     </a>
-                    <a href="<?php echo site_url('admin/blog_indexing?status=indexed' . ($search_query ? '&q=' . urlencode($search_query) : '')); ?>" 
-                       class="btn btn-sm <?php echo $filter_status === 'indexed' ? 'btn-success active' : 'btn-white'; ?>">
+                    <a href="<?php echo site_url('admin/blog_indexing?status=indexed'); ?>" 
+                       class="btn btn-xs <?php echo $filter_status === 'indexed' ? 'btn-success active' : 'btn-white'; ?>">
                         <i class="fa fa-check"></i> Sudah Di-index (<?php echo $indexed_count; ?>)
                     </a>
                 </div>
+
+                <?php if ($has_active_filter): ?>
+                    <div>
+                        <span class="badge badge-info" style="font-size: 11px; padding: 4px 8px; margin-right: 5px;">
+                            <i class="fa fa-filter"></i> Filter Aktif (<?php echo $total_filtered; ?> artikel cocok)
+                        </span>
+                        <a href="<?php echo site_url('admin/blog_indexing'); ?>" class="btn btn-xs btn-white" style="font-weight: 600; color: #c0392b;">
+                            <i class="fa fa-times"></i> Reset Semua Filter
+                        </a>
+                    </div>
+                <?php endif; ?>
             </div>
-            <div class="col-md-6 col-sm-12 text-right" style="margin-bottom: 10px;">
-                <!-- Search Form -->
-                <form method="GET" action="<?php echo site_url('admin/blog_indexing'); ?>" class="form-inline" style="display: inline-block;">
-                    <input type="hidden" name="status" value="<?php echo htmlspecialchars($filter_status); ?>">
+
+            <input type="hidden" name="status" value="<?php echo htmlspecialchars($filter_status); ?>">
+
+            <!-- Baris Dropdown Filter Spesifik Engine -->
+            <div class="row">
+                <!-- Dropdown 1: IndexNow -->
+                <div class="col-md-3 col-sm-6 col-xs-12" style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 4px; display: block;">
+                        <i class="fa fa-bolt" style="color: #27ae60;"></i> Filter IndexNow:
+                    </label>
+                    <select name="indexnow" class="form-control input-sm" onchange="this.form.submit()" style="border-radius: 4px; border-color: #dce1e4;">
+                        <option value="all" <?php echo ($filter_indexnow === null || $filter_indexnow === '' || $filter_indexnow === 'all') ? 'selected' : ''; ?>>
+                            Semua Status (<?php echo $total_posts; ?>)
+                        </option>
+                        <option value="1" <?php echo $filter_indexnow === '1' ? 'selected' : ''; ?>>
+                            ✓ Sukses (<?php echo (int)$stats_breakdown->in_success; ?>)
+                        </option>
+                        <option value="0" <?php echo $filter_indexnow === '0' ? 'selected' : ''; ?>>
+                            ⏳ Pending (<?php echo (int)$stats_breakdown->in_pending; ?>)
+                        </option>
+                        <option value="2" <?php echo $filter_indexnow === '2' ? 'selected' : ''; ?>>
+                            ✗ Gagal (<?php echo (int)$stats_breakdown->in_failed; ?>)
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Dropdown 2: GSC Sitemap -->
+                <div class="col-md-3 col-sm-6 col-xs-12" style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 4px; display: block;">
+                        <i class="fa fa-google" style="color: #2980b9;"></i> Filter GSC Sitemap:
+                    </label>
+                    <select name="gsc" class="form-control input-sm" onchange="this.form.submit()" style="border-radius: 4px; border-color: #dce1e4;">
+                        <option value="all" <?php echo ($filter_gsc === null || $filter_gsc === '' || $filter_gsc === 'all') ? 'selected' : ''; ?>>
+                            Semua Status (<?php echo $total_posts; ?>)
+                        </option>
+                        <option value="1" <?php echo $filter_gsc === '1' ? 'selected' : ''; ?>>
+                            ✓ Sukses (<?php echo (int)$stats_breakdown->gsc_success; ?>)
+                        </option>
+                        <option value="0" <?php echo $filter_gsc === '0' ? 'selected' : ''; ?>>
+                            ⏳ Pending (<?php echo (int)$stats_breakdown->gsc_pending; ?>)
+                        </option>
+                        <option value="2" <?php echo $filter_gsc === '2' ? 'selected' : ''; ?>>
+                            ✗ Gagal (<?php echo (int)$stats_breakdown->gsc_failed; ?>)
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Dropdown 3: Google Indexing API -->
+                <div class="col-md-3 col-sm-6 col-xs-12" style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 4px; display: block;">
+                        <i class="fa fa-search" style="color: #8e44ad;"></i> Filter Google API:
+                    </label>
+                    <select name="google_api" class="form-control input-sm" onchange="this.form.submit()" style="border-radius: 4px; border-color: #dce1e4;">
+                        <option value="all" <?php echo ($filter_google_api === null || $filter_google_api === '' || $filter_google_api === 'all') ? 'selected' : ''; ?>>
+                            Semua Status (<?php echo $total_posts; ?>)
+                        </option>
+                        <option value="1" <?php echo $filter_google_api === '1' ? 'selected' : ''; ?>>
+                            ✓ Terkirim (<?php echo (int)$stats_breakdown->gapi_success; ?>)
+                        </option>
+                        <option value="0" <?php echo $filter_google_api === '0' ? 'selected' : ''; ?>>
+                            ⏳ Belum Di-index (<?php echo (int)$stats_breakdown->gapi_pending; ?>)
+                        </option>
+                        <option value="2" <?php echo $filter_google_api === '2' ? 'selected' : ''; ?>>
+                            ⚠ Gagal / Butuh Akses (<?php echo (int)$stats_breakdown->gapi_failed; ?>)
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Search box -->
+                <div class="col-md-3 col-sm-6 col-xs-12" style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 4px; display: block;">
+                        <i class="fa fa-font"></i> Cari Judul Artikel:
+                    </label>
                     <div class="input-group">
-                        <input type="text" name="q" class="form-control input-sm" placeholder="Cari judul artikel..." value="<?php echo htmlspecialchars($search_query); ?>" style="min-width: 220px;">
+                        <input type="text" name="q" class="form-control input-sm" placeholder="Ketik kata kunci..." value="<?php echo htmlspecialchars($search_query); ?>" style="border-radius: 4px 0 0 4px; border-color: #dce1e4;">
                         <span class="input-group-btn">
-                            <button type="submit" class="btn btn-sm btn-primary"><i class="fa-search"></i> Cari</button>
-                            <?php if (!empty($search_query)): ?>
-                                <a href="<?php echo site_url('admin/blog_indexing?status=' . $filter_status); ?>" class="btn btn-sm btn-white" title="Reset filter"><i class="fa-times"></i></a>
-                            <?php endif; ?>
+                            <button type="submit" class="btn btn-sm btn-primary" style="border-radius: 0 4px 4px 0;"><i class="fa-search"></i> Cari</button>
                         </span>
                     </div>
-                </form>
+                </div>
             </div>
+        </form>
+    </div>
+</div>
+
+<!-- MAIN TABLE -->
+<div class="panel panel-default">
+    <div class="panel-heading" style="padding: 12px 20px;">
+        <h3 class="panel-title" style="font-weight: 700;">
+            <i class="fa fa-list"></i> Daftar Artikel
+            <span class="text-muted" style="font-size: 13px; font-weight: normal; margin-left: 8px;">
+                (Menampilkan <strong><?php echo count($items); ?></strong> dari <strong><?php echo number_format($total_filtered); ?></strong> artikel cocok)
+            </span>
+        </h3>
+        <div class="panel-options">
+            <a href="javascript:location.reload();" class="btn btn-white btn-xs" title="Refresh Halaman">
+                <i class="fa fa-refresh"></i> Refresh
+            </a>
         </div>
     </div>
     <div class="panel-body" style="padding: 0;">
@@ -167,9 +267,14 @@
                 <tbody class="middle-align">
                     <?php if (empty($items)): ?>
                         <tr>
-                            <td colspan="7" class="text-center" style="padding: 30px; color: #888;">
-                                <i class="fa fa-folder-open-o" style="font-size: 32px; display: block; margin-bottom: 10px;"></i>
-                                Tidak ada artikel yang sesuai kriteria filter.
+                            <td colspan="7" class="text-center" style="padding: 35px 20px; color: #888;">
+                                <i class="fa fa-filter" style="font-size: 32px; display: block; margin-bottom: 10px; color: #bdc3c7;"></i>
+                                <strong>Tidak ada artikel yang cocok dengan filter yang dipilih.</strong>
+                                <div style="margin-top: 10px;">
+                                    <a href="<?php echo site_url('admin/blog_indexing'); ?>" class="btn btn-xs btn-primary">
+                                        <i class="fa fa-refresh"></i> Reset Filter
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                     <?php else: ?>
@@ -222,7 +327,7 @@
                                     <?php if ($item->google_indexing_status == 1): ?>
                                         <span class="badge badge-success" style="padding: 4px 8px; background-color: #27ae60;"><i class="fa fa-check"></i> Terkirim (200)</span>
                                     <?php elseif ($item->google_indexing_status == 2): ?>
-                                        <span class="badge badge-info" style="padding: 4px 8px; background-color: #e67e22;" title="Menunggu izin Web Search Indexing API diaktifkan di Google Cloud Console"><i class="fa fa-info-circle"></i> Butuh Aktivasi</span>
+                                        <span class="badge badge-danger" style="padding: 4px 8px; background-color: #c0392b;" title="Gagal / Perlu kirim ulang"><i class="fa fa-times-circle"></i> Gagal / 403</span>
                                     <?php else: ?>
                                         <span class="badge badge-default" style="padding: 4px 8px; background-color: #bdc3c7; color: #555;"><i class="fa fa-minus"></i> Belum</span>
                                     <?php endif; ?>
@@ -241,11 +346,11 @@
                                 <td class="text-center">
                                     <button type="button" 
                                             id="btn-index-<?php echo $item->blog_id; ?>" 
-                                            class="btn btn-xs <?php echo ($item->gsc_status == 1 || $item->indexnow_status == 1) ? 'btn-white' : 'btn-primary'; ?>" 
+                                            class="btn btn-xs <?php echo ($item->gsc_status == 1 && $item->indexnow_status == 1 && $item->google_indexing_status == 1) ? 'btn-white' : 'btn-primary'; ?>" 
                                             onclick="indexSingle(<?php echo $item->blog_id; ?>)" 
                                             style="font-weight: 600;">
                                         <i class="fa-bolt" id="icon-index-<?php echo $item->blog_id; ?>"></i> 
-                                        <span id="text-index-<?php echo $item->blog_id; ?>"><?php echo ($item->gsc_status == 1 || $item->indexnow_status == 1) ? 'Re-Index' : 'Index'; ?></span>
+                                        <span id="text-index-<?php echo $item->blog_id; ?>"><?php echo ($item->gsc_status == 1 && $item->indexnow_status == 1 && $item->google_indexing_status == 1) ? 'Re-Index' : 'Index'; ?></span>
                                     </button>
                                 </td>
                             </tr>
@@ -276,21 +381,26 @@
             <div class="modal-header" style="background: linear-gradient(135deg, #00b19d 0%, #009688 100%); color: #fff; border-top-left-radius: 5px; border-top-right-radius: 5px;">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true" style="color: #fff; opacity: 0.8;">&times;</button>
                 <h4 class="modal-title" style="font-weight: 700; color: #fff;">
-                    <i class="fa fa-bolt"></i> Batch Auto-Indexing Seluruh Artikel Pending
+                    <i class="fa fa-bolt"></i> Batch Auto-Indexing
                 </h4>
             </div>
             <div class="modal-body" style="padding: 25px;">
                 <div id="batch-intro-box">
                     <p style="font-size: 14px; line-height: 1.6; color: #333;">
-                        Fitur ini akan secara otomatis memproses semua artikel yang berstatus <strong>Pending</strong> secara berurutan dalam batch (10 artikel per batch) ke:
+                        <?php if ($has_active_filter): ?>
+                            Fitur ini akan memproses seluruh artikel yang <strong>sesuai dengan filter aktif saat ini</strong> secara bertahap (10 artikel per-batch) ke:
+                        <?php else: ?>
+                            Fitur ini akan secara otomatis memproses seluruh artikel yang berstatus <strong>Pending / Belum Lengkap</strong> ke:
+                        <?php endif; ?>
                     </p>
                     <ul style="color: #555; line-height: 1.8; margin-bottom: 20px;">
-                        <li><strong>IndexNow API</strong> (Bing, Yandex, Seznam, Naver)</li>
-                        <li><strong>Google Search Console Sitemaps API</strong> (Refresh Sitemap)</li>
-                        <li><strong>Google Web Search Indexing API</strong></li>
+                        <li><i class="fa fa-check text-success"></i> <strong>IndexNow API</strong> (Bing, Yandex, Seznam, Naver)</li>
+                        <li><i class="fa fa-check text-success"></i> <strong>Google Search Console Sitemaps API</strong> (Refresh Sitemap)</li>
+                        <li><i class="fa fa-check text-success"></i> <strong>Google Web Search Indexing API</strong> (Instant URL Submission)</li>
                     </ul>
                     <div class="alert alert-info" style="font-size: 13px;">
-                        <i class="fa fa-info-circle"></i> Ditemukan <strong id="modal-pending-count"><?php echo $pending_count; ?></strong> artikel yang siap di-index.
+                        <i class="fa fa-info-circle"></i> Target yang akan diproses: 
+                        <strong id="modal-pending-count"><?php echo $has_active_filter ? $total_filtered : $pending_count; ?></strong> artikel.
                     </div>
                 </div>
 
@@ -324,9 +434,18 @@
 </div>
 
 <script type="text/javascript">
-    var totalToProcess = <?php echo (int)$pending_count; ?>;
+    var totalToProcess = <?php echo (int)($has_active_filter ? $total_filtered : $pending_count); ?>;
     var totalProcessed = 0;
     var isBatchRunning = false;
+
+    // Filter states
+    var filterParams = {
+        status: '<?php echo addslashes($filter_status); ?>',
+        indexnow: '<?php echo addslashes($filter_indexnow !== null ? $filter_indexnow : ''); ?>',
+        gsc: '<?php echo addslashes($filter_gsc !== null ? $filter_gsc : ''); ?>',
+        google_api: '<?php echo addslashes($filter_google_api !== null ? $filter_google_api : ''); ?>',
+        q: '<?php echo addslashes($search_query); ?>'
+    };
 
     // Trigger Single Indexing via AJAX
     function indexSingle(blogId) {
@@ -369,7 +488,7 @@
                     if (d.google_indexing_status === 1) {
                         $('#cell-api-' + blogId).html('<span class="badge badge-success" style="padding: 4px 8px; background-color: #27ae60;"><i class="fa fa-check"></i> Terkirim (200)</span>');
                     } else if (d.google_indexing_status === 2) {
-                        $('#cell-api-' + blogId).html('<span class="badge badge-info" style="padding: 4px 8px; background-color: #e67e22;" title="Menunggu izin Web Search Indexing API diaktifkan di Google Cloud Console"><i class="fa fa-info-circle"></i> Butuh Aktivasi</span>');
+                        $('#cell-api-' + blogId).html('<span class="badge badge-danger" style="padding: 4px 8px; background-color: #c0392b;"><i class="fa fa-times-circle"></i> Gagal / 403</span>');
                     }
 
                     // Update Time Cell
@@ -412,11 +531,13 @@
     }
 
     function processNextBatch() {
+        var postData = $.extend({ limit: 10 }, filterParams);
+
         $.ajax({
             url: '<?php echo site_url("admin/blog_indexing/ajax_index_batch"); ?>',
             type: 'POST',
             dataType: 'json',
-            data: { limit: 10 },
+            data: postData,
             success: function(res) {
                 if (res && res.success) {
                     if (res.processed > 0) {
@@ -427,15 +548,15 @@
                         $('#batch-percentage-text').text(pct + '%');
                         $('#batch-status-text').text('Memproses... (' + totalProcessed + ' selesai)');
 
-                        $('#batch-log-box').append('<div><span class="text-success"><i class="fa fa-check"></i></span> Berhasil mengirim batch ' + res.processed + ' artikel. Sisa: ' + res.remaining_count + '</div>');
+                        $('#batch-log-box').append('<div><span class="text-success"><i class="fa fa-check"></i></span> Sukses batch ' + res.processed + ' artikel. Sisa antrean: ' + res.remaining_count + '</div>');
                         $('#batch-log-box').scrollTop($('#batch-log-box')[0].scrollHeight);
 
                         if (res.remaining_count > 0) {
                             // Lanjut batch berikutnya
-                            setTimeout(processNextBatch, 800);
+                            setTimeout(processNextBatch, 600);
                         } else {
                             // Selesai seluruhnya
-                            finishBatch(true, 'Semua artikel berhasil di-index!');
+                            finishBatch(true, 'Semua artikel yang dipilih berhasil di-index!');
                         }
                     } else {
                         // Tidak ada yang diproses lagi
