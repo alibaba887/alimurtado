@@ -57,3 +57,4 @@ $route['post/(:any)'] = 'post/index/$1';
 $route['project/(:any)'] = 'project/index/$1';
 $route['appointments'] = 'appointments/index';
 $route['sitemap\.xml'] = "sitemap/index";
+$route['cron/indexing'] = 'admin/blog_indexing/run_scheduled_cron';

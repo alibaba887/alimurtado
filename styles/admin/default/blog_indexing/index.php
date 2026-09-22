@@ -120,6 +120,125 @@
     </div>
 </div>
 
+<!-- PANEL PENJADWALAN OTOMATIS (AUTO INDEX & INSPEKSI GSC) -->
+<div class="panel panel-default" style="border-left: 4px solid #8e44ad; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 25px;">
+    <div class="panel-body" style="padding: 20px;">
+        <div class="row" style="display: flex; align-items: center; flex-wrap: wrap;">
+            <!-- Kolom Kiri: Header, Saklar ON/OFF, Syarat & Status -->
+            <div class="col-md-7 col-sm-12">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px; flex-wrap: wrap;">
+                    <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #2c2e2f;">
+                        <i class="fa fa-calendar-check-o" style="color: #8e44ad; margin-right: 6px;"></i> Penjadwalan Otomatis (Index & Inspeksi GSC)
+                    </h4>
+                    
+                    <!-- Saklar Toggle ON/OFF -->
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="toggle-schedule-switch" class="iswitch iswitch-primary" <?php echo ($schedule_settings['schedule_indexing_enabled'] === '1') ? 'checked' : ''; ?> onchange="toggleScheduleStatus(this.checked)" style="cursor: pointer;">
+                        <span id="schedule-status-badge" class="badge <?php echo ($schedule_settings['schedule_indexing_enabled'] === '1') ? 'badge-success' : 'badge-default'; ?>" style="font-size: 11px; padding: 5px 12px; font-weight: 700; border-radius: 12px; letter-spacing: 0.5px;">
+                            <?php echo ($schedule_settings['schedule_indexing_enabled'] === '1') ? '● AKTIF (ON)' : '○ NONAKTIF (OFF)'; ?>
+                        </span>
+                    </div>
+                </div>
+
+                <p style="margin: 0 0 10px 0; font-size: 12px; color: #555; line-height: 1.6;">
+                    <i class="fa fa-filter text-purple"></i> <strong>Syarat Otomatis:</strong> Hanya memproses artikel yang hasil inspeksi GSC sebelumnya <strong>selain 'PASS'</strong> (belum diinspeksi, NEUTRAL, atau FAIL). Artikel yang sudah PASS tidak akan diproses ulang.
+                </p>
+
+                <div style="font-size: 12px; color: #444; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+                    <span>
+                        <i class="fa fa-clock-o" style="color: #8e44ad;"></i> Terakhir Dijalankan: 
+                        <strong id="schedule-last-run" style="color: #2c3e50;">
+                            <?php echo !empty($schedule_settings['schedule_indexing_last_run']) ? date('d M Y H:i:s', strtotime($schedule_settings['schedule_indexing_last_run'])) : 'Belum pernah'; ?>
+                        </strong>
+                    </span>
+                    <span>
+                        <i class="fa fa-tasks text-warning"></i> Sisa Antrean Non-PASS: 
+                        <strong id="schedule-queue-count" class="badge badge-warning" style="font-size: 12px; padding: 3px 8px; border-radius: 8px;">
+                            <?php echo number_format($schedule_queue_count); ?> artikel
+                        </strong>
+                    </span>
+                </div>
+
+                <div id="schedule-last-log" style="margin-top: 10px; font-size: 11px; color: #555; background: #f8f9fa; padding: 8px 12px; border-radius: 4px; border: 1px solid #e9ecef; <?php echo empty($schedule_settings['schedule_indexing_last_log']) ? 'display:none;' : ''; ?>">
+                    <i class="fa fa-info-circle text-info"></i> <span id="schedule-log-text"><?php echo htmlspecialchars($schedule_settings['schedule_indexing_last_log']); ?></span>
+                </div>
+            </div>
+
+            <!-- Kolom Kanan: Pengaturan Parameter & Tombol Cepat -->
+            <div class="col-md-5 col-sm-12 text-right" style="margin-top: 10px;">
+                <div style="background: #fafafa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 14px; display: inline-block; text-align: left; width: 100%; max-width: 440px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                    <div class="row" style="margin: 0 -5px;">
+                        <div class="col-xs-6" style="padding: 0 5px;">
+                            <label style="font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; margin-bottom: 3px; display: block;">
+                                Jenis Aksi Penjadwalan:
+                            </label>
+                            <select id="cfg-schedule-action" class="form-control input-sm" style="font-size: 11px; border-radius: 4px;">
+                                <option value="both" <?php echo $schedule_settings['schedule_indexing_action'] === 'both' ? 'selected' : ''; ?>>⚡ Index & Inspeksi GSC</option>
+                                <option value="inspect_only" <?php echo $schedule_settings['schedule_indexing_action'] === 'inspect_only' ? 'selected' : ''; ?>>🔍 Inspeksi GSC Saja</option>
+                                <option value="index_only" <?php echo $schedule_settings['schedule_indexing_action'] === 'index_only' ? 'selected' : ''; ?>>🚀 Index Saja</option>
+                            </select>
+                        </div>
+                        <div class="col-xs-6" style="padding: 0 5px;">
+                            <label style="font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; margin-bottom: 3px; display: block;">
+                                Batch per Putaran:
+                            </label>
+                            <select id="cfg-schedule-batch" class="form-control input-sm" style="font-size: 11px; border-radius: 4px;">
+                                <option value="3" <?php echo $schedule_settings['schedule_indexing_batch_size'] == 3 ? 'selected' : ''; ?>>3 Artikel</option>
+                                <option value="5" <?php echo $schedule_settings['schedule_indexing_batch_size'] == 5 ? 'selected' : ''; ?>>5 Artikel (Rekomendasi)</option>
+                                <option value="10" <?php echo $schedule_settings['schedule_indexing_batch_size'] == 10 ? 'selected' : ''; ?>>10 Artikel</option>
+                                <option value="15" <?php echo $schedule_settings['schedule_indexing_batch_size'] == 15 ? 'selected' : ''; ?>>15 Artikel</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; margin-top: 12px;">
+                        <button type="button" class="btn btn-sm btn-white" onclick="saveScheduleSettings()" id="btn-save-schedule" style="flex: 1; font-weight: 600; font-size: 11px;">
+                            <i class="fa fa-save" id="icon-save-schedule"></i> Simpan
+                        </button>
+                        <button type="button" class="btn btn-sm btn-purple" onclick="runScheduleNow()" id="btn-run-schedule-now" style="flex: 1.5; font-weight: 700; font-size: 11px; background-color: #8e44ad; color: #fff; border-color: #7d3c98;">
+                            <i class="fa fa-play" id="icon-run-schedule-now"></i> Jalankan Sekarang
+                        </button>
+                        <button type="button" class="btn btn-sm btn-default" onclick="$('#box-cron-guide').slideToggle(200);" title="Panduan Cron Server" style="font-size: 11px; font-weight: 600;">
+                            <i class="fa fa-cog"></i> Cron Info
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panduan Pemasangan Cron di CloudPanel / Server (Collapsible) -->
+        <div id="box-cron-guide" style="display: none; margin-top: 15px; padding: 16px 20px; background: #2c3e50; color: #ecf0f1; border-radius: 6px; font-size: 12px;">
+            <h5 style="color: #1abc9c; font-weight: 700; margin-top: 0; margin-bottom: 8px;">
+                <i class="fa fa-terminal"></i> Panduan Pengaturan Cron Job di CloudPanel / Server
+            </h5>
+            <p style="margin-bottom: 12px; color: #bdc3c7; font-size: 11.5px; line-height: 1.5;">
+                Saat saklar disetel ke <strong>AKTIF (ON)</strong>, Anda dapat menjalankan otomatisasi ini secara terjadwal (misal setiap 1 jam atau setiap hari) menggunakan salah satu perintah di bawah ini:
+            </p>
+            <div style="margin-bottom: 10px;">
+                <label style="font-weight: 700; color: #f1c40f; font-size: 11px; text-transform: uppercase;">1. URL Web Cron (Rekomendasi untuk CloudPanel Cron / Cron-job.org / Webhook):</label>
+                <div class="input-group">
+                    <input type="text" readonly value="<?php echo site_url('cron/indexing?token=' . $schedule_settings['schedule_indexing_secret_token']); ?>" class="form-control input-sm" id="input-cron-url" style="background: #34495e; color: #fff; border: 1px solid #465f77; font-family: monospace; font-size: 11px;">
+                    <span class="input-group-btn">
+                        <button class="btn btn-sm btn-secondary" type="button" onclick="copyCronText('input-cron-url')" style="background-color: #16a085; color: #fff; font-weight: 600;"><i class="fa fa-copy"></i> Salin URL</button>
+                    </span>
+                </div>
+            </div>
+            <div>
+                <label style="font-weight: 700; color: #f1c40f; font-size: 11px; text-transform: uppercase;">2. Perintah CLI (Untuk Crontab Linux / CloudPanel PHP Command):</label>
+                <div class="input-group">
+                    <input type="text" readonly value="php <?php echo FCPATH; ?>index.php admin/blog_indexing run_scheduled_cron" class="form-control input-sm" id="input-cron-cli" style="background: #34495e; color: #fff; border: 1px solid #465f77; font-family: monospace; font-size: 11px;">
+                    <span class="input-group-btn">
+                        <button class="btn btn-sm btn-secondary" type="button" onclick="copyCronText('input-cron-cli')" style="background-color: #16a085; color: #fff; font-weight: 600;"><i class="fa fa-copy"></i> Salin Perintah</button>
+                    </span>
+                </div>
+            </div>
+            <p style="margin-top: 10px; margin-bottom: 0; font-size: 11px; color: #95a5a6;">
+                <i class="fa fa-shield"></i> <em>Catatan Keamanan: Jika saklar di panel ini dimatikan (OFF), panggilan cron otomatis tidak akan memproses artikel apapun.</em>
+            </p>
+        </div>
+    </div>
+</div>
+
 <!-- FILTER PANEL DENGAN MULTI DROPDOWN -->
 <div class="panel panel-default" style="box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 20px;">
     <div class="panel-body" style="padding: 16px 20px; background-color: #fbfbfd; border-radius: 4px;">
@@ -820,5 +939,136 @@
         setTimeout(function() {
             $('#indexing-global-alert').slideUp();
         }, 6000);
+    }
+
+    // Toggle Status Penjadwalan (ON/OFF)
+    function toggleScheduleStatus(isChecked) {
+        var badge = $('#schedule-status-badge');
+        var enabledVal = isChecked ? '1' : '0';
+
+        badge.removeClass('badge-success badge-default')
+             .addClass('badge-warning')
+             .text('Menyimpan...');
+
+        $.ajax({
+            url: '<?php echo site_url("admin/blog_indexing/ajax_toggle_schedule"); ?>',
+            type: 'POST',
+            dataType: 'json',
+            data: { enabled: enabledVal },
+            success: function(res) {
+                if (res && res.success) {
+                    if (res.enabled === '1') {
+                        badge.removeClass('badge-warning badge-default')
+                             .addClass('badge-success')
+                             .text('● AKTIF (ON)');
+                        showGlobalAlert('success', '<i class="fa fa-check-circle"></i> ' + res.message);
+                    } else {
+                        badge.removeClass('badge-warning badge-success')
+                             .addClass('badge-default')
+                             .text('○ NONAKTIF (OFF)');
+                        showGlobalAlert('warning', '<i class="fa fa-power-off"></i> ' + res.message);
+                    }
+                } else {
+                    badge.removeClass('badge-warning')
+                         .addClass(isChecked ? 'badge-default' : 'badge-success')
+                         .text(isChecked ? '○ NONAKTIF (OFF)' : '● AKTIF (ON)');
+                    $('#toggle-schedule-switch').prop('checked', !isChecked);
+                    showGlobalAlert('danger', '<i class="fa fa-exclamation-triangle"></i> Gagal mengubah status penjadwalan.');
+                }
+            },
+            error: function(xhr, status, err) {
+                $('#toggle-schedule-switch').prop('checked', !isChecked);
+                badge.removeClass('badge-warning')
+                     .addClass(isChecked ? 'badge-default' : 'badge-success')
+                     .text(isChecked ? '○ NONAKTIF (OFF)' : '● AKTIF (ON)');
+                showGlobalAlert('danger', '<i class="fa fa-exclamation-triangle"></i> Kesalahan koneksi saat mengubah status penjadwalan.');
+            }
+        });
+    }
+
+    // Simpan Konfigurasi Penjadwalan
+    function saveScheduleSettings() {
+        var action = $('#cfg-schedule-action').val();
+        var batch = $('#cfg-schedule-batch').val();
+        var btn = $('#btn-save-schedule');
+        var icon = $('#icon-save-schedule');
+
+        btn.prop('disabled', true);
+        icon.removeClass('fa-save').addClass('fa-spinner fa-spin');
+
+        $.ajax({
+            url: '<?php echo site_url("admin/blog_indexing/ajax_save_schedule_settings"); ?>',
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: action,
+                batch_size: batch
+            },
+            success: function(res) {
+                btn.prop('disabled', false);
+                icon.removeClass('fa-spinner fa-spin').addClass('fa-save');
+                if (res && res.success) {
+                    showGlobalAlert('success', '<i class="fa fa-check-circle"></i> ' + res.message);
+                } else {
+                    showGlobalAlert('danger', '<i class="fa fa-exclamation-triangle"></i> ' + (res.message || 'Gagal menyimpan pengaturan.'));
+                }
+            },
+            error: function(xhr, status, err) {
+                btn.prop('disabled', false);
+                icon.removeClass('fa-spinner fa-spin').addClass('fa-save');
+                showGlobalAlert('danger', '<i class="fa fa-exclamation-triangle"></i> Terjadi kesalahan koneksi saat menyimpan.');
+            }
+        });
+    }
+
+    // Jalankan 1 Putaran Jadwal Sekarang (Test Run)
+    function runScheduleNow() {
+        var btn = $('#btn-run-schedule-now');
+        var icon = $('#icon-run-schedule-now');
+
+        btn.prop('disabled', true);
+        icon.removeClass('fa-play').addClass('fa-spinner fa-spin');
+
+        showGlobalAlert('info', '<i class="fa fa-spinner fa-spin"></i> Sedang memproses 1 batch aksi index & inspeksi GSC untuk artikel non-PASS...');
+
+        $.ajax({
+            url: '<?php echo site_url("admin/blog_indexing/run_scheduled_cron"); ?>',
+            type: 'POST',
+            dataType: 'json',
+            data: { force: '1' },
+            success: function(res) {
+                btn.prop('disabled', false);
+                icon.removeClass('fa-spinner fa-spin').addClass('fa-play');
+
+                if (res && res.success) {
+                    $('#schedule-last-run').text(res.last_run);
+                    $('#schedule-queue-count').text(res.remaining_count + ' artikel');
+                    $('#schedule-last-log').slideDown();
+                    $('#schedule-log-text').text(res.last_log);
+
+                    showGlobalAlert('success', '<i class="fa fa-check-circle"></i> Eksekusi selesai! ' + res.message);
+                } else {
+                    showGlobalAlert('danger', '<i class="fa fa-exclamation-triangle"></i> ' + (res.message || 'Gagal menjalankan jadwal.'));
+                }
+            },
+            error: function(xhr, status, err) {
+                btn.prop('disabled', false);
+                icon.removeClass('fa-spinner fa-spin').addClass('fa-play');
+                showGlobalAlert('danger', '<i class="fa fa-exclamation-triangle"></i> Terjadi error saat mengeksekusi jadwal: ' + err);
+            }
+        });
+    }
+
+    // Salin teks cron ke clipboard
+    function copyCronText(elementId) {
+        var copyText = document.getElementById(elementId);
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        try {
+            document.execCommand('copy');
+            showGlobalAlert('info', '<i class="fa fa-copy"></i> Teks perintah cron berhasil disalin ke clipboard!');
+        } catch(e) {
+            alert('Teks berhasil dipilih, silakan tekan Ctrl+C untuk menyalin.');
+        }
     }
 </script>

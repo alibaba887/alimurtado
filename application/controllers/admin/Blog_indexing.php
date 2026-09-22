@@ -21,7 +21,8 @@ class Blog_indexing extends CIF_Controller {
 
     public function __construct() {
         parent::__construct();
-        if (!$this->input->is_cli_request()) {
+        $is_cron_method = in_array($this->router->fetch_method(), ['run_scheduled_cron', 'auto_cron']);
+        if (!$this->input->is_cli_request() && !$is_cron_method) {
             $this->permission();
         }
         $this->load->library('auto_indexer');
@@ -111,6 +112,37 @@ class Blog_indexing extends CIF_Controller {
                                      ($filter_google_api !== null && $filter_google_api !== '' && $filter_google_api !== 'all') ||
                                      ($filter_gsc_verdict !== null && $filter_gsc_verdict !== '' && $filter_gsc_verdict !== 'all') ||
                                      (!empty($search_query));
+
+        // 3. Konfigurasi Jadwal Otomatis (Cron Settings)
+        $settings_rows = $this->db->where_in('key', [
+            'schedule_indexing_enabled',
+            'schedule_indexing_action',
+            'schedule_indexing_batch_size',
+            'schedule_indexing_secret_token',
+            'schedule_indexing_last_run',
+            'schedule_indexing_last_log'
+        ])->get('settings')->result();
+
+        $schedule_settings = [
+            'schedule_indexing_enabled'      => '0',
+            'schedule_indexing_action'       => 'both',
+            'schedule_indexing_batch_size'   => '5',
+            'schedule_indexing_secret_token' => '',
+            'schedule_indexing_last_run'     => '',
+            'schedule_indexing_last_log'     => 'Belum pernah dijalankan'
+        ];
+        foreach ($settings_rows as $row) {
+            $schedule_settings[$row->key] = $row->value;
+        }
+        $data['schedule_settings'] = $schedule_settings;
+
+        // Hitung jumlah artikel non-PASS yang mengantre untuk penjadwalan
+        $data['schedule_queue_count'] = $this->db->where('display', '1')
+                                                 ->group_start()
+                                                     ->where('gsc_verdict IS NULL', null, false)
+                                                     ->or_where('gsc_verdict !=', 'PASS')
+                                                 ->group_end()
+                                                 ->count_all_results('blog');
 
         $this->load->view($this->module . '/index', $data);
     }
@@ -302,38 +334,213 @@ class Blog_indexing extends CIF_Controller {
     }
 
     /**
-     * CLI / Cron auto-index untuk memproses background queue jika dipanggil terjadwal
+     * AJAX: Nyalakan / Matikan saklar penjadwalan otomatis
      */
-    public function auto_cron() {
-        $limit = 10;
-        $pending_blogs = $this->db->where('display', '1')
-                                  ->group_start()
-                                      ->where('gsc_status', 0)
-                                      ->or_where('indexnow_status', 0)
-                                      ->or_where('google_indexing_status !=', 1)
-                                  ->group_end()
-                                  ->order_by('blog_id', 'DESC')
-                                  ->limit($limit)
-                                  ->get('blog')
-                                  ->result();
+    public function ajax_toggle_schedule() {
+        $enabled = $this->input->post('enabled') === '1' ? '1' : '0';
+        $this->db->where('key', 'schedule_indexing_enabled')->update('settings', ['value' => $enabled]);
 
-        if (empty($pending_blogs)) {
-            echo "Auto-indexer: Semua artikel sudah ter-index.\n";
-            exit;
+        $this->_json_output([
+            'success' => true,
+            'enabled' => $enabled,
+            'message' => $enabled === '1' ? 'Penjadwalan otomatis berhasil DIAKTIFKAN!' : 'Penjadwalan otomatis berhasil DIMATIKAN.'
+        ]);
+    }
+
+    /**
+     * AJAX: Simpan konfigurasi penjadwalan (aksi & batch size)
+     */
+    public function ajax_save_schedule_settings() {
+        $action = $this->input->post('action');
+        if (!in_array($action, ['both', 'inspect_only', 'index_only'])) {
+            $action = 'both';
+        }
+        $batch_size = (int)$this->input->post('batch_size');
+        if ($batch_size < 1) $batch_size = 1;
+        if ($batch_size > 20) $batch_size = 20;
+
+        $this->db->where('key', 'schedule_indexing_action')->update('settings', ['value' => $action]);
+        $this->db->where('key', 'schedule_indexing_batch_size')->update('settings', ['value' => (string)$batch_size]);
+
+        $this->_json_output([
+            'success' => true,
+            'message' => 'Pengaturan penjadwalan berhasil disimpan!'
+        ]);
+    }
+
+    /**
+     * Runner Penjadwalan Otomatis:
+     * Dijalankan via CLI (cron Linux) atau HTTP Web Cron (dengan validasi secret token) atau tombol admin.
+     * Syarat: Hanya artikel dengan status inspeksi GSC selain 'PASS' (termasuk belum diinspeksi).
+     */
+    public function run_scheduled_cron($cli_force = null) {
+        $is_cli = $this->input->is_cli_request();
+        $is_ajax = $this->input->is_ajax_request();
+        $is_admin = $this->session->userdata('user_id') ? true : false;
+        $token = trim($this->input->get_post('token') ?: '');
+
+        // 1. Ambil seluruh konfigurasi jadwal dari settings
+        $settings_rows = $this->db->where_in('key', [
+            'schedule_indexing_enabled',
+            'schedule_indexing_action',
+            'schedule_indexing_batch_size',
+            'schedule_indexing_secret_token',
+            'schedule_indexing_last_run',
+            'schedule_indexing_last_log'
+        ])->get('settings')->result();
+
+        $cfg = [];
+        foreach ($settings_rows as $row) {
+            $cfg[$row->key] = $row->value;
         }
 
-        $items = [];
-        foreach ($pending_blogs as $blog) {
+        $secret_token = !empty($cfg['schedule_indexing_secret_token']) ? $cfg['schedule_indexing_secret_token'] : '';
+        $is_authorized = false;
+
+        if ($is_cli) {
+            $is_authorized = true;
+        } elseif ($is_admin) {
+            $is_authorized = true;
+        } elseif (!empty($token) && hash_equals($secret_token, $token)) {
+            $is_authorized = true;
+        }
+
+        if (!$is_authorized) {
+            if ($is_ajax) {
+                $this->_json_output(['success' => false, 'message' => 'Akses ditolak: Token tidak valid']);
+            } else {
+                show_error('Akses ditolak: Token keamanan cron tidak valid.', 403);
+            }
+        }
+
+        $force_run = ($this->input->get_post('force') == '1' || $cli_force === '1' || $cli_force === 'force');
+        $is_enabled = (isset($cfg['schedule_indexing_enabled']) && $cfg['schedule_indexing_enabled'] === '1');
+
+        // Jika dipanggil via cron luar/CLI dan saklar mati (kecuali dipaksa via admin Run Now)
+        if (!$is_enabled && !$force_run) {
+            $msg = 'Penjadwalan otomatis sedang NONAKTIF (OFF) di pengaturan dashboard.';
+            if ($is_ajax) {
+                $this->_json_output(['success' => false, 'message' => $msg]);
+            } else {
+                echo $msg . "\n";
+                exit;
+            }
+        }
+
+        $action = !empty($cfg['schedule_indexing_action']) ? $cfg['schedule_indexing_action'] : 'both';
+        $batch_size = !empty($cfg['schedule_indexing_batch_size']) ? (int)$cfg['schedule_indexing_batch_size'] : 5;
+        if ($batch_size < 1) $batch_size = 1;
+        if ($batch_size > 20) $batch_size = 20;
+
+        // 2. Query artikel yang berstatus selain PASS (gsc_verdict IS NULL OR gsc_verdict != 'PASS')
+        $target_blogs = $this->db->where('display', '1')
+                                 ->group_start()
+                                     ->where('gsc_verdict IS NULL', null, false)
+                                     ->or_where('gsc_verdict !=', 'PASS')
+                                 ->group_end()
+                                 ->order_by('(gsc_verdict IS NULL) DESC, gsc_last_crawl_time ASC, blog_id DESC', '', false)
+                                 ->limit($batch_size)
+                                 ->get('blog')
+                                 ->result();
+
+        if (empty($target_blogs)) {
+            $msg = 'Semua artikel terbit sudah berstatus PASS di Google Search Console! Tidak ada artikel selain PASS.';
+            $this->db->where('key', 'schedule_indexing_last_run')->update('settings', ['value' => date('Y-m-d H:i:s')]);
+            $this->db->where('key', 'schedule_indexing_last_log')->update('settings', ['value' => $msg]);
+
+            if ($is_ajax) {
+                $this->_json_output([
+                    'success'         => true,
+                    'message'         => $msg,
+                    'processed_count' => 0,
+                    'remaining_count' => 0
+                ]);
+            } else {
+                echo $msg . "\n";
+                exit;
+            }
+        }
+
+        // 3. Proses artikel target
+        $processed_details = [];
+        $pass_count = 0;
+        $neutral_count = 0;
+        $fail_count = 0;
+
+        foreach ($target_blogs as $blog) {
             $slug = function_exists('sanitize') ? sanitize($blog->title) : url_title($blog->title, '-', TRUE);
-            $items[] = [
-                'blog_id' => $blog->blog_id,
-                'url'     => site_url('post/' . $blog->blog_id . '-' . $slug)
+            $post_url = site_url('post/' . $blog->blog_id . '-' . $slug);
+
+            $index_res = null;
+            $inspect_res = null;
+
+            // Aksi A: Submit Indexing jika mode 'both' atau 'index_only'
+            if ($action === 'both' || $action === 'index_only') {
+                $index_res = $this->auto_indexer->index_url($post_url, null, $blog->blog_id);
+            }
+
+            // Aksi B: Inspeksi GSC jika mode 'both' atau 'inspect_only'
+            if ($action === 'both' || $action === 'inspect_only') {
+                // Jeda 300ms agar API Google Search Console tidak terkena limit rate
+                usleep(300000);
+                $inspect_res = $this->auto_indexer->inspect_url($post_url, $blog->blog_id);
+                if (!empty($inspect_res['success']) && !empty($inspect_res['data']['verdict'])) {
+                    $v = $inspect_res['data']['verdict'];
+                    if ($v === 'PASS') $pass_count++;
+                    elseif ($v === 'NEUTRAL') $neutral_count++;
+                    else $fail_count++;
+                }
+            }
+
+            $processed_details[] = [
+                'blog_id'     => $blog->blog_id,
+                'title'       => $blog->title,
+                'url'         => $post_url,
+                'index_res'   => $index_res,
+                'inspect_res' => $inspect_res
             ];
         }
 
-        $res = $this->auto_indexer->index_batch($items);
-        echo "Auto-indexer cron: Sukses memproses " . count($items) . " artikel.\n";
-        exit;
+        // Hitung sisa artikel non-PASS yang tersisa
+        $remaining_count = $this->db->where('display', '1')
+                                    ->group_start()
+                                        ->where('gsc_verdict IS NULL', null, false)
+                                        ->or_where('gsc_verdict !=', 'PASS')
+                                    ->group_end()
+                                    ->count_all_results('blog');
+
+        $now_str = date('Y-m-d H:i:s');
+        $log_summary = 'Berhasil memproses ' . count($processed_details) . ' artikel pada ' . date('d M Y H:i:s') . '.';
+        if ($action === 'both' || $action === 'inspect_only') {
+            $log_summary .= ' Hasil GSC: ' . $pass_count . ' PASS, ' . $neutral_count . ' NEUTRAL, ' . $fail_count . ' FAIL.';
+        }
+        $log_summary .= ' Sisa non-PASS: ' . $remaining_count . ' artikel.';
+
+        // Simpan log ke settings
+        $this->db->where('key', 'schedule_indexing_last_run')->update('settings', ['value' => $now_str]);
+        $this->db->where('key', 'schedule_indexing_last_log')->update('settings', ['value' => $log_summary]);
+
+        if ($is_ajax) {
+            $this->_json_output([
+                'success'         => true,
+                'message'         => $log_summary,
+                'processed_count' => count($processed_details),
+                'remaining_count' => $remaining_count,
+                'last_run'        => $now_str,
+                'last_log'        => $log_summary,
+                'details'         => $processed_details
+            ]);
+        } else {
+            echo "[" . $now_str . "] " . $log_summary . "\n";
+            exit;
+        }
+    }
+
+    /**
+     * CLI / Cron auto-index untuk memproses background queue jika dipanggil terjadwal
+     */
+    public function auto_cron() {
+        return $this->run_scheduled_cron();
     }
 
     /**
