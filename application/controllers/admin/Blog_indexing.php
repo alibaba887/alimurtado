@@ -118,6 +118,8 @@ class Blog_indexing extends CIF_Controller {
             'schedule_indexing_enabled',
             'schedule_indexing_action',
             'schedule_indexing_batch_size',
+            'schedule_indexing_interval',
+            'schedule_indexing_date_range',
             'schedule_indexing_secret_token',
             'schedule_indexing_last_run',
             'schedule_indexing_last_log'
@@ -127,6 +129,8 @@ class Blog_indexing extends CIF_Controller {
             'schedule_indexing_enabled'      => '0',
             'schedule_indexing_action'       => 'both',
             'schedule_indexing_batch_size'   => '5',
+            'schedule_indexing_interval'     => '6',
+            'schedule_indexing_date_range'   => 'all',
             'schedule_indexing_secret_token' => '',
             'schedule_indexing_last_run'     => '',
             'schedule_indexing_last_log'     => 'Belum pernah dijalankan'
@@ -136,13 +140,17 @@ class Blog_indexing extends CIF_Controller {
         }
         $data['schedule_settings'] = $schedule_settings;
 
-        // Hitung jumlah artikel non-PASS yang mengantre untuk penjadwalan
-        $data['schedule_queue_count'] = $this->db->where('display', '1')
-                                                 ->group_start()
-                                                     ->where('gsc_verdict IS NULL', null, false)
-                                                     ->or_where('gsc_verdict !=', 'PASS')
-                                                 ->group_end()
-                                                 ->count_all_results('blog');
+        // Hitung jumlah artikel non-PASS yang mengantre untuk penjadwalan (sesuai rentang tanggal artikel aktif)
+        $queue_query = $this->db->where('display', '1')
+                                ->group_start()
+                                    ->where('gsc_verdict IS NULL', null, false)
+                                    ->or_where('gsc_verdict !=', 'PASS')
+                                ->group_end();
+        if ($schedule_settings['schedule_indexing_date_range'] !== 'all' && is_numeric($schedule_settings['schedule_indexing_date_range'])) {
+            $days = (int)$schedule_settings['schedule_indexing_date_range'];
+            $queue_query->where('datetime >=', date('Y-m-d H:i:s', strtotime("-{$days} days")));
+        }
+        $data['schedule_queue_count'] = $queue_query->count_all_results('blog');
 
         $this->load->view($this->module . '/index', $data);
     }
@@ -348,7 +356,7 @@ class Blog_indexing extends CIF_Controller {
     }
 
     /**
-     * AJAX: Simpan konfigurasi penjadwalan (aksi & batch size)
+     * AJAX: Simpan konfigurasi penjadwalan (aksi, batch size, rentang interval & rentang tanggal)
      */
     public function ajax_save_schedule_settings() {
         $action = $this->input->post('action');
@@ -359,12 +367,43 @@ class Blog_indexing extends CIF_Controller {
         if ($batch_size < 1) $batch_size = 1;
         if ($batch_size > 20) $batch_size = 20;
 
-        $this->db->where('key', 'schedule_indexing_action')->update('settings', ['value' => $action]);
-        $this->db->where('key', 'schedule_indexing_batch_size')->update('settings', ['value' => (string)$batch_size]);
+        $interval = (int)$this->input->post('interval');
+        if ($interval < 0) $interval = 0;
+        if ($interval > 168) $interval = 168;
+
+        $date_range = $this->input->post('date_range');
+        if (!in_array($date_range, ['all', '7', '30', '90', '365'])) {
+            $date_range = 'all';
+        }
+
+        $this->_save_setting('schedule_indexing_action', $action);
+        $this->_save_setting('schedule_indexing_batch_size', (string)$batch_size);
+        $this->_save_setting('schedule_indexing_interval', (string)$interval);
+        $this->_save_setting('schedule_indexing_date_range', $date_range);
+
+        // Hitung ulang antrean non-PASS berdasarkan rentang tanggal yang baru disimpan
+        $queue_query = $this->db->where('display', '1')
+                                ->group_start()
+                                    ->where('gsc_verdict IS NULL', null, false)
+                                    ->or_where('gsc_verdict !=', 'PASS')
+                                ->group_end();
+        if ($date_range !== 'all' && is_numeric($date_range)) {
+            $days = (int)$date_range;
+            $queue_query->where('datetime >=', date('Y-m-d H:i:s', strtotime("-{$days} days")));
+        }
+        $new_queue_count = $queue_query->count_all_results('blog');
+
+        $interval_label = ($interval === 0) ? 'Setiap Cron Terpanggil' : 'Setiap ' . $interval . ' Jam';
+        $daterange_label = ($date_range === 'all') ? 'Semua Artikel' : $date_range . ' Hari Terakhir';
 
         $this->_json_output([
-            'success' => true,
-            'message' => 'Pengaturan penjadwalan berhasil disimpan!'
+            'success'         => true,
+            'message'         => 'Pengaturan penjadwalan & rentang berhasil disimpan!',
+            'queue_count'     => $new_queue_count,
+            'interval'        => $interval,
+            'interval_label'  => $interval_label,
+            'date_range'      => $date_range,
+            'daterange_label' => $daterange_label
         ]);
     }
 
@@ -384,6 +423,8 @@ class Blog_indexing extends CIF_Controller {
             'schedule_indexing_enabled',
             'schedule_indexing_action',
             'schedule_indexing_batch_size',
+            'schedule_indexing_interval',
+            'schedule_indexing_date_range',
             'schedule_indexing_secret_token',
             'schedule_indexing_last_run',
             'schedule_indexing_last_log'
@@ -427,26 +468,62 @@ class Blog_indexing extends CIF_Controller {
             }
         }
 
+        // Cek Rentang Waktu (Interval Minimal Eksekusi Cron)
+        $interval_hours = isset($cfg['schedule_indexing_interval']) ? (int)$cfg['schedule_indexing_interval'] : 6;
+        if ($interval_hours > 0 && !$force_run && !empty($cfg['schedule_indexing_last_run'])) {
+            $last_run_timestamp = strtotime($cfg['schedule_indexing_last_run']);
+            $next_allowed_time = $last_run_timestamp + ($interval_hours * 3600);
+
+            if (time() < $next_allowed_time) {
+                $remaining_seconds = $next_allowed_time - time();
+                $rem_hours = floor($remaining_seconds / 3600);
+                $rem_minutes = ceil(($remaining_seconds % 3600) / 60);
+                $rem_text = ($rem_hours > 0 ? $rem_hours . ' jam ' : '') . $rem_minutes . ' menit';
+
+                $msg = "Rentang waktu belum tercapai (diatur setiap {$interval_hours} jam). Terakhir dijalankan " . date('d M Y H:i:s', $last_run_timestamp) . ". Putaran berikutnya siap dalam {$rem_text}.";
+
+                if ($is_ajax) {
+                    $this->_json_output([
+                        'success' => false,
+                        'message' => $msg,
+                        'skipped' => true
+                    ]);
+                } else {
+                    echo "[" . date('Y-m-d H:i:s') . "] [CRON SKIP] " . $msg . "\n";
+                    exit;
+                }
+            }
+        }
+
         $action = !empty($cfg['schedule_indexing_action']) ? $cfg['schedule_indexing_action'] : 'both';
         $batch_size = !empty($cfg['schedule_indexing_batch_size']) ? (int)$cfg['schedule_indexing_batch_size'] : 5;
         if ($batch_size < 1) $batch_size = 1;
         if ($batch_size > 20) $batch_size = 20;
 
-        // 2. Query artikel yang berstatus selain PASS (gsc_verdict IS NULL OR gsc_verdict != 'PASS')
-        $target_blogs = $this->db->where('display', '1')
-                                 ->group_start()
-                                     ->where('gsc_verdict IS NULL', null, false)
-                                     ->or_where('gsc_verdict !=', 'PASS')
-                                 ->group_end()
-                                 ->order_by('(gsc_verdict IS NULL) DESC, gsc_last_crawl_time ASC, blog_id DESC', '', false)
-                                 ->limit($batch_size)
-                                 ->get('blog')
-                                 ->result();
+        $date_range = !empty($cfg['schedule_indexing_date_range']) ? $cfg['schedule_indexing_date_range'] : 'all';
+
+        // 2. Query artikel yang berstatus selain PASS (gsc_verdict IS NULL OR gsc_verdict != 'PASS') sesuai rentang tanggal artikel
+        $query = $this->db->where('display', '1')
+                          ->group_start()
+                              ->where('gsc_verdict IS NULL', null, false)
+                              ->or_where('gsc_verdict !=', 'PASS')
+                          ->group_end();
+
+        if ($date_range !== 'all' && is_numeric($date_range)) {
+            $days = (int)$date_range;
+            $query->where('datetime >=', date('Y-m-d H:i:s', strtotime("-{$days} days")));
+        }
+
+        $target_blogs = $query->order_by('(gsc_verdict IS NULL) DESC, gsc_last_crawl_time ASC, blog_id DESC', '', false)
+                              ->limit($batch_size)
+                              ->get('blog')
+                              ->result();
 
         if (empty($target_blogs)) {
-            $msg = 'Semua artikel terbit sudah berstatus PASS di Google Search Console! Tidak ada artikel selain PASS.';
-            $this->db->where('key', 'schedule_indexing_last_run')->update('settings', ['value' => date('Y-m-d H:i:s')]);
-            $this->db->where('key', 'schedule_indexing_last_log')->update('settings', ['value' => $msg]);
+            $range_label = ($date_range === 'all') ? 'semua artikel' : 'artikel ' . $date_range . ' hari terakhir';
+            $msg = 'Semua artikel terbit (' . $range_label . ') sudah berstatus PASS di Google Search Console!';
+            $this->_save_setting('schedule_indexing_last_run', date('Y-m-d H:i:s'));
+            $this->_save_setting('schedule_indexing_last_log', $msg);
 
             if ($is_ajax) {
                 $this->_json_output([
@@ -501,24 +578,29 @@ class Blog_indexing extends CIF_Controller {
             ];
         }
 
-        // Hitung sisa artikel non-PASS yang tersisa
-        $remaining_count = $this->db->where('display', '1')
-                                    ->group_start()
-                                        ->where('gsc_verdict IS NULL', null, false)
-                                        ->or_where('gsc_verdict !=', 'PASS')
-                                    ->group_end()
-                                    ->count_all_results('blog');
+        // Hitung sisa artikel non-PASS yang tersisa sesuai rentang tanggal artikel
+        $rem_query = $this->db->where('display', '1')
+                              ->group_start()
+                                  ->where('gsc_verdict IS NULL', null, false)
+                                  ->or_where('gsc_verdict !=', 'PASS')
+                              ->group_end();
+        if ($date_range !== 'all' && is_numeric($date_range)) {
+            $days = (int)$date_range;
+            $rem_query->where('datetime >=', date('Y-m-d H:i:s', strtotime("-{$days} days")));
+        }
+        $remaining_count = $rem_query->count_all_results('blog');
 
         $now_str = date('Y-m-d H:i:s');
-        $log_summary = 'Berhasil memproses ' . count($processed_details) . ' artikel pada ' . date('d M Y H:i:s') . '.';
+        $range_label = ($date_range === 'all') ? 'Semua Tanggal' : $date_range . ' Hari Terakhir';
+        $log_summary = 'Berhasil memproses ' . count($processed_details) . ' artikel pada ' . date('d M Y H:i:s') . ' (Rentang: ' . $range_label . ').';
         if ($action === 'both' || $action === 'inspect_only') {
             $log_summary .= ' Hasil GSC: ' . $pass_count . ' PASS, ' . $neutral_count . ' NEUTRAL, ' . $fail_count . ' FAIL.';
         }
         $log_summary .= ' Sisa non-PASS: ' . $remaining_count . ' artikel.';
 
         // Simpan log ke settings
-        $this->db->where('key', 'schedule_indexing_last_run')->update('settings', ['value' => $now_str]);
-        $this->db->where('key', 'schedule_indexing_last_log')->update('settings', ['value' => $log_summary]);
+        $this->_save_setting('schedule_indexing_last_run', $now_str);
+        $this->_save_setting('schedule_indexing_last_log', $log_summary);
 
         if ($is_ajax) {
             $this->_json_output([
@@ -533,6 +615,18 @@ class Blog_indexing extends CIF_Controller {
         } else {
             echo "[" . $now_str . "] " . $log_summary . "\n";
             exit;
+        }
+    }
+
+    /**
+     * Helper simpan / perbarui setting
+     */
+    private function _save_setting($key, $value) {
+        $exists = $this->db->where('key', $key)->count_all_results('settings');
+        if ($exists > 0) {
+            $this->db->where('key', $key)->update('settings', ['value' => $value]);
+        } else {
+            $this->db->insert('settings', ['key' => $key, 'value' => $value]);
         }
     }
 

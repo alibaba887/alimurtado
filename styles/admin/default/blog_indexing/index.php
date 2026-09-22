@@ -425,6 +425,24 @@
                             <?php echo number_format($schedule_queue_count); ?> artikel
                         </strong>
                     </span>
+                    <span>
+                        <i class="fa fa-hourglass-half text-primary"></i> Rentang Waktu: 
+                        <strong id="display-schedule-interval" style="color: #2c3e50;">
+                            <?php 
+                                $curr_int = isset($schedule_settings['schedule_indexing_interval']) ? (int)$schedule_settings['schedule_indexing_interval'] : 6;
+                                echo $curr_int === 0 ? 'Setiap Cron Terpanggil' : 'Setiap ' . $curr_int . ' Jam';
+                            ?>
+                        </strong>
+                    </span>
+                    <span>
+                        <i class="fa fa-calendar text-success"></i> Rentang Target: 
+                        <strong id="display-schedule-daterange" style="color: #2c3e50;">
+                            <?php 
+                                $curr_dr = isset($schedule_settings['schedule_indexing_date_range']) ? $schedule_settings['schedule_indexing_date_range'] : 'all';
+                                echo $curr_dr === 'all' ? 'Semua Artikel' : $curr_dr . ' Hari Terakhir';
+                            ?>
+                        </strong>
+                    </span>
                 </div>
 
                 <div id="schedule-last-log" style="margin-top: 10px; font-size: 11px; color: #555; background: #f8f9fa; padding: 8px 12px; border-radius: 4px; border: 1px solid #e9ecef; <?php echo empty($schedule_settings['schedule_indexing_last_log']) ? 'display:none;' : ''; ?>">
@@ -434,9 +452,9 @@
 
             <!-- Kolom Kanan: Pengaturan Parameter & Tombol Cepat -->
             <div class="col-md-5 col-sm-12 text-right mobile-align-left" style="margin-top: 10px;">
-                <div class="schedule-config-box" style="background: #fafafa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 14px; display: inline-block; text-align: left; width: 100%; max-width: 440px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div class="schedule-config-box" style="background: #fafafa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 14px; display: inline-block; text-align: left; width: 100%; max-width: 460px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
                     <div class="row" style="margin: 0 -5px;">
-                        <div class="col-xs-6" style="padding: 0 5px;">
+                        <div class="col-xs-6" style="padding: 0 5px; margin-bottom: 8px;">
                             <label style="font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; margin-bottom: 3px; display: block;">
                                 Jenis Aksi Penjadwalan:
                             </label>
@@ -446,7 +464,7 @@
                                 <option value="index_only" <?php echo $schedule_settings['schedule_indexing_action'] === 'index_only' ? 'selected' : ''; ?>>🚀 Index Saja</option>
                             </select>
                         </div>
-                        <div class="col-xs-6" style="padding: 0 5px;">
+                        <div class="col-xs-6" style="padding: 0 5px; margin-bottom: 8px;">
                             <label style="font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; margin-bottom: 3px; display: block;">
                                 Batch per Putaran:
                             </label>
@@ -455,6 +473,34 @@
                                 <option value="5" <?php echo $schedule_settings['schedule_indexing_batch_size'] == 5 ? 'selected' : ''; ?>>5 Artikel (Rekomendasi)</option>
                                 <option value="10" <?php echo $schedule_settings['schedule_indexing_batch_size'] == 10 ? 'selected' : ''; ?>>10 Artikel</option>
                                 <option value="15" <?php echo $schedule_settings['schedule_indexing_batch_size'] == 15 ? 'selected' : ''; ?>>15 Artikel</option>
+                            </select>
+                        </div>
+
+                        <!-- Rentang Waktu (Interval) & Rentang Tanggal Target Artikel -->
+                        <div class="col-xs-6" style="padding: 0 5px;">
+                            <label style="font-size: 10px; font-weight: 700; color: #8e44ad; text-transform: uppercase; margin-bottom: 3px; display: block;" title="Jeda rentang waktu minimal antar eksekusi cron otomatis">
+                                <i class="fa fa-hourglass-half"></i> Rentang Waktu:
+                            </label>
+                            <select id="cfg-schedule-interval" class="form-control input-sm" style="font-size: 11px; border-radius: 4px; border-color: #d2b4de;">
+                                <option value="0" <?php echo (isset($schedule_settings['schedule_indexing_interval']) && $schedule_settings['schedule_indexing_interval'] == 0) ? 'selected' : ''; ?>>⚡ Setiap Cron Terpanggil</option>
+                                <option value="1" <?php echo (isset($schedule_settings['schedule_indexing_interval']) && $schedule_settings['schedule_indexing_interval'] == 1) ? 'selected' : ''; ?>>⏱ Setiap 1 Jam</option>
+                                <option value="2" <?php echo (isset($schedule_settings['schedule_indexing_interval']) && $schedule_settings['schedule_indexing_interval'] == 2) ? 'selected' : ''; ?>>⏱ Setiap 2 Jam</option>
+                                <option value="4" <?php echo (isset($schedule_settings['schedule_indexing_interval']) && $schedule_settings['schedule_indexing_interval'] == 4) ? 'selected' : ''; ?>>⏱ Setiap 4 Jam</option>
+                                <option value="6" <?php echo (!isset($schedule_settings['schedule_indexing_interval']) || $schedule_settings['schedule_indexing_interval'] == 6) ? 'selected' : ''; ?>>⏱ Setiap 6 Jam (Rekomendasi)</option>
+                                <option value="12" <?php echo (isset($schedule_settings['schedule_indexing_interval']) && $schedule_settings['schedule_indexing_interval'] == 12) ? 'selected' : ''; ?>>⏱ Setiap 12 Jam</option>
+                                <option value="24" <?php echo (isset($schedule_settings['schedule_indexing_interval']) && $schedule_settings['schedule_indexing_interval'] == 24) ? 'selected' : ''; ?>>📅 Setiap 24 Jam (1 Hari)</option>
+                            </select>
+                        </div>
+                        <div class="col-xs-6" style="padding: 0 5px;">
+                            <label style="font-size: 10px; font-weight: 700; color: #27ae60; text-transform: uppercase; margin-bottom: 3px; display: block;" title="Filter umur penerbitan artikel yang diproses">
+                                <i class="fa fa-calendar"></i> Rentang Tanggal:
+                            </label>
+                            <select id="cfg-schedule-daterange" class="form-control input-sm" style="font-size: 11px; border-radius: 4px; border-color: #a9dfbf;">
+                                <option value="all" <?php echo (!isset($schedule_settings['schedule_indexing_date_range']) || $schedule_settings['schedule_indexing_date_range'] === 'all') ? 'selected' : ''; ?>>🌐 Semua Artikel</option>
+                                <option value="7" <?php echo (isset($schedule_settings['schedule_indexing_date_range']) && $schedule_settings['schedule_indexing_date_range'] === '7') ? 'selected' : ''; ?>>📅 7 Hari Terakhir</option>
+                                <option value="30" <?php echo (isset($schedule_settings['schedule_indexing_date_range']) && $schedule_settings['schedule_indexing_date_range'] === '30') ? 'selected' : ''; ?>>📅 30 Hari Terakhir</option>
+                                <option value="90" <?php echo (isset($schedule_settings['schedule_indexing_date_range']) && $schedule_settings['schedule_indexing_date_range'] === '90') ? 'selected' : ''; ?>>📅 90 Hari Terakhir</option>
+                                <option value="365" <?php echo (isset($schedule_settings['schedule_indexing_date_range']) && $schedule_settings['schedule_indexing_date_range'] === '365') ? 'selected' : ''; ?>>📅 1 Tahun Terakhir</option>
                             </select>
                         </div>
                     </div>
@@ -1260,6 +1306,8 @@
     function saveScheduleSettings() {
         var action = $('#cfg-schedule-action').val();
         var batch = $('#cfg-schedule-batch').val();
+        var interval = $('#cfg-schedule-interval').val();
+        var dateRange = $('#cfg-schedule-daterange').val();
         var btn = $('#btn-save-schedule');
         var icon = $('#icon-save-schedule');
 
@@ -1272,12 +1320,23 @@
             dataType: 'json',
             data: {
                 action: action,
-                batch_size: batch
+                batch_size: batch,
+                interval: interval,
+                date_range: dateRange
             },
             success: function(res) {
                 btn.prop('disabled', false);
                 icon.removeClass('fa-spinner fa-spin').addClass('fa-save');
                 if (res && res.success) {
+                    if (res.queue_count !== undefined) {
+                        $('#schedule-queue-count').text(res.queue_count + ' artikel');
+                    }
+                    if (res.interval_label) {
+                        $('#display-schedule-interval').text(res.interval_label);
+                    }
+                    if (res.daterange_label) {
+                        $('#display-schedule-daterange').text(res.daterange_label);
+                    }
                     showGlobalAlert('success', '<i class="fa fa-check-circle"></i> ' + res.message);
                 } else {
                     showGlobalAlert('danger', '<i class="fa fa-exclamation-triangle"></i> ' + (res.message || 'Gagal menyimpan pengaturan.'));
