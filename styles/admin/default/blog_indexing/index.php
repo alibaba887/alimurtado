@@ -15,7 +15,7 @@
                 <a href="<?php echo site_url('admin/blog') ?>"><?php echo lang('global_blog') ?></a>
             </li>
             <li class="active">
-                <strong>Status Indexing Blog</strong>
+                <strong>Status Indexing & URL Inspection</strong>
             </li>
         </ol>
     </div>
@@ -42,7 +42,7 @@
             </div>
             <div class="xe-label">
                 <strong class="num" id="stat-indexed-count"><?php echo number_format($indexed_count); ?></strong>
-                <span>Sudah Di-index</span>
+                <span>Sudah Di-submit</span>
             </div>
         </div>
     </div>
@@ -78,21 +78,24 @@
         <div class="row" style="display: flex; align-items: center; flex-wrap: wrap;">
             <div class="col-md-7 col-sm-12">
                 <h4 style="margin: 0 0 10px 0; font-size: 16px; font-weight: 700; color: #2c2e2f;">
-                    <i class="fa fa-tachometer" style="color: #00b19d; margin-right: 6px;"></i> Mesin Auto-Indexing Aktif
+                    <i class="fa fa-tachometer" style="color: #00b19d; margin-right: 6px;"></i> Mesin Indexing & Inspeksi GSC Aktif
                 </h4>
                 <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
                     <span class="badge badge-success" style="font-size: 12px; padding: 5px 12px; border-radius: 12px; background-color: #27ae60;">
-                        <i class="fa fa-check"></i> IndexNow (Bing / Yandex / Seznam)
+                        <i class="fa fa-check"></i> IndexNow (Bing / Yandex)
                     </span>
                     <span class="badge badge-success" style="font-size: 12px; padding: 5px 12px; border-radius: 12px; background-color: #2980b9;">
-                        <i class="fa fa-google"></i> Google Search Console Sitemap Refresh
+                        <i class="fa fa-google"></i> GSC Sitemap Refresh
                     </span>
                     <span class="badge badge-success" style="font-size: 12px; padding: 5px 12px; border-radius: 12px; background-color: #8e44ad;">
-                        <i class="fa fa-bolt"></i> Google Indexing API (Service Account)
+                        <i class="fa fa-bolt"></i> Google Indexing API
+                    </span>
+                    <span class="badge badge-info" style="font-size: 12px; padding: 5px 12px; border-radius: 12px; background-color: #e67e22;">
+                        <i class="fa fa-search"></i> GSC URL Inspection Resmi
                     </span>
                 </div>
                 <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.6;">
-                    Setiap artikel baru otomatis terkirim ke 3 search engine. Anda juga dapat memfilter artikel berdasarkan status engine tertentu di bawah ini dan menjalankannya secara manual per-artikel atau batch otomatis.
+                    Anda dapat memfilter artikel, menjalankan indexing otomatis/manual, dan <strong>memeriksa data resmi hasil inspeksi Google Search Console</strong> (coverageState, verdict, indexingState, dsb.) secara langsung per-artikel.
                 </p>
             </div>
             <div class="col-md-5 col-sm-12 text-right" style="margin-top: 10px;">
@@ -255,13 +258,13 @@
             <table class="table table-bordered table-hover" style="margin-bottom: 0;">
                 <thead style="background-color: #f8f9fa;">
                     <tr>
-                        <th style="width: 55px; text-align: center;">ID</th>
+                        <th style="width: 50px; text-align: center;">ID</th>
                         <th>Judul Artikel</th>
-                        <th style="width: 140px; text-align: center;">IndexNow</th>
-                        <th style="width: 140px; text-align: center;">GSC Sitemap</th>
-                        <th style="width: 150px; text-align: center;">Google API</th>
-                        <th style="width: 150px;">Waktu Indexing</th>
-                        <th style="width: 130px; text-align: center;">Aksi</th>
+                        <th style="width: 175px; text-align: center;">Hasil Resmi GSC</th>
+                        <th style="width: 125px; text-align: center;">IndexNow</th>
+                        <th style="width: 125px; text-align: center;">GSC Sitemap</th>
+                        <th style="width: 135px; text-align: center;">Google API</th>
+                        <th style="width: 195px; text-align: center;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="middle-align">
@@ -299,6 +302,23 @@
                                         <?php endif; ?>
                                     </div>
                                 </td>
+
+                                <!-- Official GSC URL Inspection Status -->
+                                <td class="text-center" id="cell-gsc-inspect-<?php echo $item->blog_id; ?>">
+                                    <?php if (!empty($item->gsc_verdict) && $item->gsc_verdict === 'PASS'): ?>
+                                        <span class="badge badge-success" style="padding: 4px 8px; background-color: #27ae60; font-size: 11px;" title="<?php echo htmlspecialchars($item->gsc_coverage_state ?: 'Submitted and indexed'); ?>">
+                                            <i class="fa fa-check-circle"></i> <?php echo htmlspecialchars($item->gsc_coverage_state ?: 'Indexed (PASS)'); ?>
+                                        </span>
+                                    <?php elseif (!empty($item->gsc_coverage_state)): ?>
+                                        <span class="badge badge-warning" style="padding: 4px 8px; background-color: #e67e22; font-size: 11px;" title="<?php echo htmlspecialchars($item->gsc_coverage_state); ?>">
+                                            <i class="fa fa-info-circle"></i> <?php echo htmlspecialchars($item->gsc_coverage_state); ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-muted" style="font-size: 11px;">
+                                            <i class="fa fa-question-circle"></i> Belum Diinspeksi
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
                                 
                                 <!-- IndexNow Status -->
                                 <td class="text-center" id="cell-indexnow-<?php echo $item->blog_id; ?>">
@@ -333,24 +353,28 @@
                                     <?php endif; ?>
                                 </td>
 
-                                <!-- Last Indexed At -->
-                                <td id="cell-time-<?php echo $item->blog_id; ?>" style="font-size: 12px;">
-                                    <?php if (!empty($item->last_indexed_at)): ?>
-                                        <i class="fa fa-check-circle text-success"></i> <?php echo date('d M Y H:i', strtotime($item->last_indexed_at)); ?>
-                                    <?php else: ?>
-                                        <span class="text-muted">-</span>
-                                    <?php endif; ?>
-                                </td>
-
                                 <!-- Actions -->
-                                <td class="text-center">
+                                <td class="text-center" style="white-space: nowrap;">
+                                    <!-- Button Indexing -->
                                     <button type="button" 
                                             id="btn-index-<?php echo $item->blog_id; ?>" 
                                             class="btn btn-xs <?php echo ($item->gsc_status == 1 && $item->indexnow_status == 1 && $item->google_indexing_status == 1) ? 'btn-white' : 'btn-primary'; ?>" 
                                             onclick="indexSingle(<?php echo $item->blog_id; ?>)" 
-                                            style="font-weight: 600;">
+                                            style="font-weight: 600; margin-right: 3px;"
+                                            title="Kirim URL ke search engine">
                                         <i class="fa-bolt" id="icon-index-<?php echo $item->blog_id; ?>"></i> 
                                         <span id="text-index-<?php echo $item->blog_id; ?>"><?php echo ($item->gsc_status == 1 && $item->indexnow_status == 1 && $item->google_indexing_status == 1) ? 'Re-Index' : 'Index'; ?></span>
+                                    </button>
+
+                                    <!-- Button Official GSC URL Inspection -->
+                                    <button type="button" 
+                                            id="btn-inspect-<?php echo $item->blog_id; ?>" 
+                                            class="btn btn-xs btn-info" 
+                                            onclick="inspectSingle(<?php echo $item->blog_id; ?>)" 
+                                            style="font-weight: 600; background-color: #e67e22; border-color: #e67e22; color: #fff;"
+                                            title="Inspeksi status resmi URL di Google Search Console">
+                                        <i class="fa fa-search" id="icon-inspect-<?php echo $item->blog_id; ?>"></i> 
+                                        <span id="text-inspect-<?php echo $item->blog_id; ?>">Inspeksi GSC</span>
                                     </button>
                                 </td>
                             </tr>
@@ -371,6 +395,92 @@
             </div>
         <?php endif; ?>
 
+    </div>
+</div>
+
+<!-- MODAL DETAIL RESMI GOOGLE SEARCH CONSOLE INSPECTION -->
+<div class="modal fade" id="modal-gsc-inspection" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%); color: #fff; border-top-left-radius: 5px; border-top-right-radius: 5px;">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true" style="color: #fff; opacity: 0.8;">&times;</button>
+                <h4 class="modal-title" style="font-weight: 700; color: #fff;">
+                    <i class="fa fa-google"></i> Hasil Resmi Google Search Console URL Inspection
+                </h4>
+            </div>
+            <div class="modal-body" style="padding: 25px;">
+                <div style="margin-bottom: 20px; padding: 12px 16px; background-color: #f8f9fa; border: 1px solid #eee; border-radius: 6px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 4px;">URL Yang Diinspeksi:</div>
+                    <a href="#" id="modal-inspect-url-link" target="_blank" style="font-size: 14px; font-weight: 600; color: #2980b9; word-break: break-all;"></a>
+                </div>
+
+                <div class="row">
+                    <!-- Kolom Kiri -->
+                    <div class="col-md-6">
+                        <table class="table table-bordered table-striped" style="font-size: 13px;">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 45%; background: #fbfbfd;">Status Evaluasi (Verdict)</th>
+                                    <td id="modal-inspect-verdict"></td>
+                                </tr>
+                                <tr>
+                                    <th style="background: #fbfbfd;">Status Cakupan (Coverage)</th>
+                                    <td id="modal-inspect-coverage" style="font-weight: 600;"></td>
+                                </tr>
+                                <tr>
+                                    <th style="background: #fbfbfd;">Izin Indeks (Indexing State)</th>
+                                    <td id="modal-inspect-indexing"></td>
+                                </tr>
+                                <tr>
+                                    <th style="background: #fbfbfd;">Aturan Robots.txt</th>
+                                    <td id="modal-inspect-robots"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Kolom Kanan -->
+                    <div class="col-md-6">
+                        <table class="table table-bordered table-striped" style="font-size: 13px;">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 45%; background: #fbfbfd;">Pengambilan Halaman</th>
+                                    <td id="modal-inspect-fetch"></td>
+                                </tr>
+                                <tr>
+                                    <th style="background: #fbfbfd;">Perayapan Terakhir (Last Crawl)</th>
+                                    <td id="modal-inspect-last-crawl"></td>
+                                </tr>
+                                <tr>
+                                    <th style="background: #fbfbfd;">Google Canonical URL</th>
+                                    <td id="modal-inspect-canonical" style="word-break: break-all; font-size: 11px;"></td>
+                                </tr>
+                                <tr>
+                                    <th style="background: #fbfbfd;">Waktu Inspeksi Ini</th>
+                                    <td id="modal-inspect-time"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Referring URLs -->
+                <div style="margin-top: 15px;">
+                    <h5 style="font-weight: 700; color: #333; margin-bottom: 8px;">
+                        <i class="fa fa-link"></i> URL Perujuk (Referring URLs yang Ditemukan Googlebot):
+                    </h5>
+                    <div id="modal-inspect-referring" style="background: #fdfdfe; border: 1px solid #eef0f2; border-radius: 4px; padding: 10px 14px; max-height: 120px; overflow-y: auto; font-size: 12px; font-family: monospace;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="#" id="modal-inspect-gsc-btn" target="_blank" class="btn btn-primary btn-icon btn-icon-standalone pull-left" style="font-weight: 600;">
+                    <i class="fa fa-external-link"></i>
+                    <span>Buka di Google Search Console Web</span>
+                </a>
+                <button type="button" class="btn btn-white" data-dismiss="modal">Tutup</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -491,9 +601,6 @@
                         $('#cell-api-' + blogId).html('<span class="badge badge-danger" style="padding: 4px 8px; background-color: #c0392b;"><i class="fa fa-times-circle"></i> Gagal / 403</span>');
                     }
 
-                    // Update Time Cell
-                    $('#cell-time-' + blogId).html('<i class="fa fa-check-circle text-success"></i> Baru saja');
-
                     // Update Log
                     if (d.indexing_log) {
                         $('#log-blog-' + blogId).text(d.indexing_log);
@@ -509,6 +616,88 @@
                 icon.removeClass('fa-spinner fa-spin').addClass('fa-bolt');
                 text.text('Index');
                 showGlobalAlert('danger', '<i class="fa fa-exclamation-circle"></i> Terjadi kesalahan koneksi server: ' + err);
+            }
+        });
+    }
+
+    // Trigger Official GSC URL Inspection via AJAX
+    function inspectSingle(blogId) {
+        var btn = $('#btn-inspect-' + blogId);
+        var icon = $('#icon-inspect-' + blogId);
+        var text = $('#text-inspect-' + blogId);
+
+        btn.prop('disabled', true);
+        icon.removeClass('fa-search').addClass('fa-spinner fa-spin');
+        text.text('Cek GSC...');
+
+        $.ajax({
+            url: '<?php echo site_url("admin/blog_indexing/ajax_inspect_single"); ?>',
+            type: 'POST',
+            dataType: 'json',
+            data: { blog_id: blogId },
+            success: function(res) {
+                btn.prop('disabled', false);
+                icon.removeClass('fa-spinner fa-spin').addClass('fa-search');
+                text.text('Inspeksi GSC');
+
+                if (res && res.success) {
+                    var d = res.data;
+
+                    // Update cell status di tabel
+                    if (d.verdict === 'PASS') {
+                        $('#cell-gsc-inspect-' + blogId).html('<span class="badge badge-success" style="padding: 4px 8px; background-color: #27ae60; font-size: 11px;"><i class="fa fa-check-circle"></i> ' + (d.coverage_state || 'Indexed (PASS)') + '</span>');
+                    } else if (d.coverage_state) {
+                        $('#cell-gsc-inspect-' + blogId).html('<span class="badge badge-warning" style="padding: 4px 8px; background-color: #e67e22; font-size: 11px;"><i class="fa fa-info-circle"></i> ' + d.coverage_state + '</span>');
+                    }
+
+                    // Isi data modal
+                    $('#modal-inspect-url-link').attr('href', d.url).text(d.url);
+                    
+                    if (d.verdict === 'PASS') {
+                        $('#modal-inspect-verdict').html('<span class="badge badge-success" style="background-color: #27ae60; padding: 4px 8px;"><i class="fa fa-check"></i> PASS (Lolos)</span>');
+                    } else {
+                        $('#modal-inspect-verdict').html('<span class="badge badge-warning" style="background-color: #e67e22; padding: 4px 8px;">' + d.verdict + '</span>');
+                    }
+
+                    $('#modal-inspect-coverage').text(d.coverage_state || '-');
+                    $('#modal-inspect-indexing').text(d.indexing_state || '-');
+                    $('#modal-inspect-robots').text(d.robots_txt_state || '-');
+                    $('#modal-inspect-fetch').text(d.page_fetch_state || '-');
+                    $('#modal-inspect-last-crawl').text(d.last_crawl_time || '-');
+                    $('#modal-inspect-canonical').text(d.google_canonical || '-');
+                    $('#modal-inspect-time').text(d.inspected_at || '-');
+
+                    // Referring URLs
+                    var refHtml = '';
+                    if (d.referring_urls && d.referring_urls.length > 0) {
+                        refHtml = '<ul style="padding-left: 18px; margin: 0;">';
+                        $.each(d.referring_urls, function(idx, refUrl) {
+                            refHtml += '<li><a href="' + refUrl + '" target="_blank" style="color: #555;">' + refUrl + '</a></li>';
+                        });
+                        refHtml += '</ul>';
+                    } else {
+                        refHtml = '<span class="text-muted">Tidak ada URL perujuk yang dilaporkan.</span>';
+                    }
+                    $('#modal-inspect-referring').html(refHtml);
+
+                    // GSC Link
+                    if (d.inspection_link) {
+                        $('#modal-inspect-gsc-btn').attr('href', d.inspection_link).show();
+                    } else {
+                        $('#modal-inspect-gsc-btn').hide();
+                    }
+
+                    // Tampilkan modal
+                    $('#modal-gsc-inspection').modal('show');
+                } else {
+                    showGlobalAlert('danger', '<i class="fa fa-exclamation-circle"></i> ' + (res.message || 'Gagal melakukan inspeksi GSC.'));
+                }
+            },
+            error: function(xhr, status, err) {
+                btn.prop('disabled', false);
+                icon.removeClass('fa-spinner fa-spin').addClass('fa-search');
+                text.text('Inspeksi GSC');
+                showGlobalAlert('danger', '<i class="fa fa-exclamation-circle"></i> Terjadi kesalahan koneksi saat inspeksi GSC: ' + err);
             }
         });
     }
@@ -552,14 +741,11 @@
                         $('#batch-log-box').scrollTop($('#batch-log-box')[0].scrollHeight);
 
                         if (res.remaining_count > 0) {
-                            // Lanjut batch berikutnya
                             setTimeout(processNextBatch, 600);
                         } else {
-                            // Selesai seluruhnya
                             finishBatch(true, 'Semua artikel yang dipilih berhasil di-index!');
                         }
                     } else {
-                        // Tidak ada yang diproses lagi
                         finishBatch(true, 'Tidak ada antrean pending lagi.');
                     }
                 } else {

@@ -399,6 +399,128 @@ class Auto_indexer {
     }
 
     /**
+     * Inspeksi URL resmi langsung ke Google Search Console URL Inspection API
+     *
+     * @param string $url URL artikel yang ingin diinspeksi
+     * @param int|null $blog_id ID artikel jika ada
+     * @return array Hasil inspeksi resmi GSC
+     */
+    public function inspect_url($url, $blog_id = null) {
+        if (!$blog_id && preg_match('#/post/(\d+)(?:-|$)#', $url, $matches)) {
+            $blog_id = (int)$matches[1];
+        }
+
+        if (!file_exists($this->oauth_config_path)) {
+            return ['success' => false, 'message' => 'File google_oauth.json tidak ditemukan'];
+        }
+
+        $oauth = json_decode(file_get_contents($this->oauth_config_path), true);
+        if (empty($oauth['refresh_token']) || empty($oauth['client_id']) || empty($oauth['client_secret'])) {
+            return ['success' => false, 'message' => 'OAuth config tidak lengkap'];
+        }
+
+        // 1. Dapatkan access token (atau gunakan cache)
+        if (!$this->cached_oauth_token) {
+            $token_ch = curl_init('https://oauth2.googleapis.com/token');
+            curl_setopt($token_ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($token_ch, CURLOPT_POST, true);
+            curl_setopt($token_ch, CURLOPT_TIMEOUT, 6);
+            curl_setopt($token_ch, CURLOPT_POSTFIELDS, http_build_query([
+                'client_id'     => $oauth['client_id'],
+                'client_secret' => $oauth['client_secret'],
+                'refresh_token' => $oauth['refresh_token'],
+                'grant_type'    => 'refresh_token'
+            ]));
+            $token_raw = curl_exec($token_ch);
+            curl_close($token_ch);
+
+            $token_data = json_decode($token_raw, true);
+            if (empty($token_data['access_token'])) {
+                return ['success' => false, 'message' => 'Gagal refresh Google OAuth token: ' . $token_raw];
+            }
+
+            $this->cached_oauth_token = $token_data['access_token'];
+        }
+
+        $access_token = $this->cached_oauth_token;
+
+        // 2. Panggil GSC URL Inspection API
+        $inspect_ch = curl_init('https://searchconsole.googleapis.com/v1/urlInspection/index:inspect');
+        curl_setopt($inspect_ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($inspect_ch, CURLOPT_POST, true);
+        curl_setopt($inspect_ch, CURLOPT_TIMEOUT, 15);
+        curl_setopt($inspect_ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $access_token,
+            'Content-Type: application/json'
+        ]);
+        curl_setopt($inspect_ch, CURLOPT_POSTFIELDS, json_encode([
+            'inspectionUrl' => $url,
+            'siteUrl'       => 'sc-domain:' . $this->indexnow_host
+        ]));
+
+        $response_raw = curl_exec($inspect_ch);
+        $http_code    = curl_getinfo($inspect_ch, CURLINFO_HTTP_CODE);
+        curl_close($inspect_ch);
+
+        $res_json = json_decode($response_raw, true);
+
+        if ($http_code !== 200 || empty($res_json['inspectionResult'])) {
+            return [
+                'success'   => false,
+                'code'      => $http_code,
+                'message'   => isset($res_json['error']['message']) ? $res_json['error']['message'] : 'Gagal melakukan inspeksi URL di GSC',
+                'raw'       => $res_json
+            ];
+        }
+
+        $inspect_res = $res_json['inspectionResult'];
+        $status_res  = isset($inspect_res['indexStatusResult']) ? $inspect_res['indexStatusResult'] : [];
+
+        $verdict          = isset($status_res['verdict']) ? $status_res['verdict'] : 'VERDICT_UNSPECIFIED';
+        $coverage_state   = isset($status_res['coverageState']) ? $status_res['coverageState'] : 'Unknown';
+        $robots_txt       = isset($status_res['robotsTxtState']) ? $status_res['robotsTxtState'] : '-';
+        $indexing_state   = isset($status_res['indexingState']) ? $status_res['indexingState'] : '-';
+        $last_crawl_raw   = isset($status_res['lastCrawlTime']) ? $status_res['lastCrawlTime'] : null;
+        $last_crawl_time  = $last_crawl_raw ? date('Y-m-d H:i:s', strtotime($last_crawl_raw)) : null;
+        $page_fetch_state = isset($status_res['pageFetchState']) ? $status_res['pageFetchState'] : '-';
+        $google_canonical = isset($status_res['googleCanonical']) ? $status_res['googleCanonical'] : '-';
+        $referring_urls   = isset($status_res['referringUrls']) ? $status_res['referringUrls'] : [];
+        $inspect_link     = isset($inspect_res['inspectionResultLink']) ? $inspect_res['inspectionResultLink'] : '';
+
+        $clean_data = [
+            'url'              => $url,
+            'blog_id'          => $blog_id,
+            'verdict'          => $verdict,
+            'coverage_state'   => $coverage_state,
+            'robots_txt_state' => $robots_txt,
+            'indexing_state'   => $indexing_state,
+            'last_crawl_time'  => $last_crawl_time,
+            'last_crawl_raw'   => $last_crawl_raw,
+            'page_fetch_state' => $page_fetch_state,
+            'google_canonical' => $google_canonical,
+            'referring_urls'   => $referring_urls,
+            'inspection_link'  => $inspect_link,
+            'inspected_at'     => date('Y-m-d H:i:s')
+        ];
+
+        // 3. Simpan hasil inspeksi resmi ke database tabel blog
+        if ($blog_id) {
+            $this->CI->db->where('blog_id', $blog_id)->update('blog', [
+                'gsc_verdict'        => $verdict,
+                'gsc_coverage_state' => $coverage_state,
+                'gsc_last_crawl_time'=> $last_crawl_time,
+                'gsc_inspection_json'=> json_encode($clean_data)
+            ]);
+        }
+
+        return [
+            'success' => true,
+            'code'    => 200,
+            'data'    => $clean_data
+        ];
+    }
+
+    /**
      * Base64 URL safe encode
      */
     private function _base64_url_encode($data) {

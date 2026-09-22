@@ -145,6 +145,39 @@ class Blog_indexing extends CIF_Controller {
     }
 
     /**
+     * AJAX: Inspeksi status resmi URL di Google Search Console
+     */
+    public function ajax_inspect_single() {
+        $blog_id = (int)$this->input->post('blog_id');
+        if (!$blog_id) {
+            $this->_json_output(['success' => false, 'message' => 'ID Blog tidak valid']);
+        }
+
+        $blog = $this->db->where('blog_id', $blog_id)->get('blog')->row();
+        if (!$blog) {
+            $this->_json_output(['success' => false, 'message' => 'Artikel blog tidak ditemukan']);
+        }
+
+        $slug = function_exists('sanitize') ? sanitize($blog->title) : url_title($blog->title, '-', TRUE);
+        $post_url = site_url('post/' . $blog->blog_id . '-' . $slug);
+
+        $res = $this->auto_indexer->inspect_url($post_url, $blog_id);
+
+        if ($res['success']) {
+            $this->_json_output([
+                'success' => true,
+                'message' => 'Inspeksi Google Search Console berhasil didapatkan!',
+                'data'    => $res['data']
+            ]);
+        } else {
+            $this->_json_output([
+                'success' => false,
+                'message' => 'Inspeksi gagal: ' . (isset($res['message']) ? $res['message'] : 'Gagal memanggil API GSC')
+            ]);
+        }
+    }
+
+    /**
      * AJAX: Dapatkan jumlah sisa artikel yang perlu di-index (mendukung filter spesifik)
      */
     public function ajax_get_pending_count() {
