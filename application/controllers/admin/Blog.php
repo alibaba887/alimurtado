@@ -88,7 +88,21 @@ class Blog extends CIF_Controller {
             $this->{$this->model}->meta_description = $this->input->post('meta_description');
             $this->{$this->model}->author = $this->input->post('author');
             $this->{$this->model}->display = $this->input->post('display');
-            $this->{$this->model}->save();
+            $saved_id = $this->{$this->model}->save();
+
+            if ($this->input->post('display') == '1') {
+                $post_id = $id ? $id : $saved_id;
+                $title = $this->input->post('title');
+                $slug = function_exists('sanitize') ? sanitize($title) : url_title($title, '-', TRUE);
+                $post_url = site_url('post/' . $post_id . '-' . $slug);
+                try {
+                    $this->load->library('auto_indexer');
+                    $this->auto_indexer->index_url($post_url);
+                } catch (Exception $e) {
+                    log_message('error', 'Auto indexing failed on blog save: ' . $e->getMessage());
+                }
+            }
+
             redirect('admin/' . $this->module);
         }
     }
@@ -261,6 +275,16 @@ class Blog extends CIF_Controller {
         $post_url = site_url('post/' . $blog_id . '-' . $slug);
         $edit_url = site_url('admin/blog/manage/' . $blog_id);
 
+        $indexing_res = null;
+        if ($display === '1') {
+            try {
+                $this->load->library('auto_indexer');
+                $indexing_res = $this->auto_indexer->index_url($post_url);
+            } catch (Exception $e) {
+                log_message('error', 'Auto indexing failed for AI generated post ' . $blog_id . ': ' . $e->getMessage());
+            }
+        }
+
         $this->_json_output([
             'success' => true,
             'message' => 'Artikel berhasil dibuat ' . ($display === '1' ? 'dan langsung diterbitkan!' : 'dan disimpan sebagai Draft.'),
@@ -269,6 +293,7 @@ class Blog extends CIF_Controller {
                 'title'     => $final_title,
                 'post_url'  => $post_url,
                 'edit_url'  => $edit_url,
+                'indexing'  => $indexing_res,
                 'display'   => $display
             ]
         ]);

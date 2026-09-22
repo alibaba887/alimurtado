@@ -252,7 +252,16 @@ class Ai_blog_queue {
             'tag'               => $final_keywords
         ]);
 
-        // 9. Update riwayat cron di `settings`
+        // 9. Auto-indexing ke Search Engine (IndexNow, Google Sitemaps, Google Indexing API)
+        $indexing_res = null;
+        try {
+            $this->CI->load->library('auto_indexer');
+            $indexing_res = $this->CI->auto_indexer->index_url($post_url, $queue_id);
+        } catch (Exception $e) {
+            log_message('error', 'Auto indexing failed for post ' . $new_blog_id . ': ' . $e->getMessage());
+        }
+
+        // 10. Update riwayat cron di `settings`
         $now_str = date('Y-m-d H:i:s');
         $this->CI->db->where('key', 'ai_blog_last_run')->update('settings', ['value' => $now_str]);
         $this->CI->db->where('key', 'ai_blog_last_title')->update('settings', ['value' => $final_title]);
@@ -269,6 +278,7 @@ class Ai_blog_queue {
                 'title'           => $final_title,
                 'post_url'        => $post_url,
                 'image'           => $image_filename,
+                'indexing'        => $indexing_res,
                 'last_run'        => $now_str,
                 'remaining_queue' => $remaining_count
             ]
