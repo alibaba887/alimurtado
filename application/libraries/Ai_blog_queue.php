@@ -152,7 +152,7 @@ class Ai_blog_queue {
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 180);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "Authorization: Bearer sk-895ace0e48ed3da9-71c2c9-af525798",
+            "Authorization: Bearer sk-895ace0e48ed3da9-7827a5-d9b1ab00",
             "Content-Type: application/json"
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
